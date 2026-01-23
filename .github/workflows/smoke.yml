@@ -2,11 +2,11 @@ name: Smoke
 
 on:
   push:
-    branches: main
+    branches: na
   pull_request:
-    branches: main
-  schedule:
-    - cron: "0 0 * * *" # Run daily at midnight UTC
+    branches: na
+  # schedule:
+  #   - cron: "0 0 * * *" # Run daily at midnight UTC
 
 jobs:
   smoke:
