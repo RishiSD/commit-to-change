@@ -12,10 +12,15 @@ const serviceAdapter = new ExperimentalEmptyAdapter();
 
 // 2. Create the CopilotRuntime instance and utilize the LangGraph FastAPI
 //    integration to setup the connection.
+// Get agent URL from environment variable, with fallback for local development
+const agentUrl = process.env.AGENT_URL || 
+  process.env.NEXT_PUBLIC_AGENT_URL ||
+  "http://localhost:8123";
+
 const runtime = new CopilotRuntime({
   agents: {
     sample_agent: new LangGraphHttpAgent({
-      url: process.env.AGENT_URL || "http://localhost:8123",
+      url: agentUrl,
     }),
   },
 });
