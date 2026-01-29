@@ -99,15 +99,6 @@ function YourMainContent() {
     },
   });
 
-  useDefaultTool({
-    render: ({ name, status }) => {
-      const textStyles = "text-gray-500 text-sm mt-2"
-      if(status !== "complete") {
-        return <p className={textStyles}>Calling {name}...</p>;
-      }
-      return <p className={textStyles}>Called {name}!</p>;
-    },
-  })
 
   // 🪁 Human In the Loop: https://docs.copilotkit.ai/pydantic-ai/human-in-the-loop
   useHumanInTheLoop({
@@ -141,6 +132,40 @@ function YourMainContent() {
           respond={respond}
         />
       );
+    },
+  });
+
+  // 🪁 Recipe Extraction: Custom UI for URL-based recipe extraction
+  useRenderToolCall({
+    name: "extract_and_process_recipe",
+    description: "Extract and process recipe from URL",
+    parameters: [
+      {
+        name: "url",
+        type: "string",
+        description: "URL to extract recipe from",
+        required: true,
+      },
+    ],
+    render: ({ status }) => {
+      // Show loading state during extraction
+      if (status === "inProgress" || status === "executing") {
+        return (
+          <div className="flex items-center gap-2 text-gray-600 text-sm py-2 px-3 bg-gray-50 rounded-lg">
+            <div 
+              className="h-4 w-4 border-2 rounded-full animate-spin"
+              style={{ 
+                borderColor: THEME_COLOR,
+                borderTopColor: 'transparent'
+              }}
+            />
+            <span>Extracting recipe from URL...</span>
+          </div>
+        );
+      }
+      
+      // Return empty div when complete (agent will provide formatted response)
+      return <div className="hidden" />;
     },
   });
 
