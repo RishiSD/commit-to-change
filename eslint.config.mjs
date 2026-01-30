@@ -5,6 +5,13 @@ const eslintConfig = [
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
+    rules: {
+      // Disable React Compiler rule for setState in effects
+      // This is needed for legitimate hydration detection patterns
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
+  {
     ignores: [
       "node_modules/**",
       ".next/**",

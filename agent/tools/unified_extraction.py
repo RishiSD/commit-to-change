@@ -471,7 +471,7 @@ def _validate_and_format_combined(
     
     Uses structured output to get:
     - Validation result (is_valid_recipe, has_ingredients, has_instructions)
-    - Formatted markdown (if valid)
+    - Structured JSON recipe data (if valid)
     - Follow-up URL (if invalid and URLs present)
     
     Args:
@@ -480,7 +480,7 @@ def _validate_and_format_combined(
         depth: Current extraction depth
         
     Returns:
-        ValidateAndFormatOutput with validation + formatting results
+        ValidateAndFormatOutput with validation + JSON formatting results
     """
     try:
         from langchain.chat_models import init_chat_model
@@ -503,7 +503,7 @@ def _validate_and_format_combined(
         # Truncate content to avoid token limits
         truncated_content = content #[:CONTENT_TRUNCATE_LENGTH]
         
-        prompt = f"""You are a recipe validation and formatting expert. Analyze the following content and perform TWO tasks:
+        prompt = f"""You are a recipe extraction and structuring expert. Analyze the following content and perform TWO tasks:
 
 **TASK 1: VALIDATE**
 Determine if this content contains a COMPLETE, VALID recipe.
@@ -519,12 +519,28 @@ BE STRICT - reject:
 - Ingredient lists without cooking steps
 - Cooking steps without ingredient lists
 
-**TASK 2A: FORMAT (if valid recipe)**
-If valid, format into clean markdown:
-- # [Recipe Name]
-- ## Ingredients (bulleted list with -)
-- ## Instructions (numbered steps)
-- ## Additional Information (if timing/tips present)
+**TASK 2A: EXTRACT AS JSON (if valid recipe)**
+If valid, extract the recipe as structured JSON with these fields:
+- title: Recipe name/title
+- ingredients: Array of objects with {{name, quantity, unit}}
+  * name: ingredient name (e.g., "All-purpose flour", "Garlic")
+  * quantity: numeric value OR string for ranges/descriptions (e.g., 2, 2.5, "2-3", "to taste")
+  * unit: measurement unit (e.g., "cups", "g", "cloves", "tbsp", "pinch")
+- steps: Array of instruction strings (ordered)
+- tags: Array of descriptive tags (e.g., ["italian", "vegetarian", "quick", "easy"])
+- servings: Number of servings (integer, if available)
+- prep_time: Preparation time (string like "15 minutes", if available)
+- cook_time: Cooking time (string like "30 minutes", if available)
+- total_time: Total time (string like "45 minutes", if available)
+- difficulty: One of "easy", "medium", or "hard" (if you can infer)
+- cuisine: Cuisine type (e.g., "Italian", "Indian", "Mexican", if identifiable)
+- additional_info: Array of helpful tips, storage instructions, substitutions, or serving suggestions (if available in content)
+
+IMPORTANT for ingredients:
+- Parse quantities carefully (e.g., "2 cups" → quantity: 2, unit: "cups")
+- For ranges use strings (e.g., "2-3 cloves" → quantity: "2-3", unit: "cloves")
+- For "to taste" or "as needed" → quantity: "to taste", unit: ""
+- Normalize units (e.g., "c" → "cups", "tsp" → "teaspoons")
 
 **TASK 2B: EXTRACT FOLLOW-UP URL (if invalid recipe)**
 If NO valid recipe found, search the content for URLs that might contain the recipe:
@@ -544,7 +560,7 @@ If NO valid recipe found, search the content for URLs that might contain the rec
 **OUTPUT REQUIREMENTS:**
 Return ValidateAndFormatOutput with:
 - is_valid_recipe: true/false
-- recipe_markdown: formatted markdown (ONLY if valid recipe, else null)
+- recipe_data: structured JSON object (ONLY if valid recipe, else null)
 - recipe_name: extracted name or null
 - has_ingredients: true/false
 - has_instructions: true/false
@@ -554,13 +570,16 @@ Return ValidateAndFormatOutput with:
 - confidence: overall confidence score 0.0-1.0"""
         
         result = structured_model.invoke([SystemMessage(content=prompt)])
+        # Ensure we return a ValidateAndFormatOutput instance
+        if isinstance(result, dict):
+            return ValidateAndFormatOutput(**result)
         return result
         
     except Exception as e:
         # Fallback to failed validation
         return ValidateAndFormatOutput(
             is_valid_recipe=False,
-            recipe_markdown=None,
+            recipe_data=None,
             recipe_name=None,
             has_ingredients=False,
             has_instructions=False,
@@ -586,7 +605,7 @@ def _extract_recursive(
     Flow:
     1. Extract content from URL
     2. Validate + format in single LLM call
-    3. If valid recipe → return formatted result
+    3. If valid recipe → return formatted JSON result
     4. If invalid but has follow-up URL with confidence >= threshold:
        → Recursively call with follow-up URL (if depth allows)
     5. Otherwise → return failure with details
@@ -605,7 +624,7 @@ def _extract_recursive(
     if not extraction_result.success:
         return UnifiedRecipeResult(
             success=False,
-            recipe_markdown=None,
+            recipe_json=None,
             recipe_name=None,
             extraction_url=url,
             is_valid_recipe=False,
@@ -626,11 +645,21 @@ def _extract_recursive(
     )
     
     # STEP 3: Check if we have a valid recipe
-    if validate_format_result.is_valid_recipe:
-        # SUCCESS! Return formatted recipe
+    if validate_format_result.is_valid_recipe and validate_format_result.recipe_data:
+        # SUCCESS! Convert recipe_data to RecipeJSON and add metadata
+        from .models import RecipeJSON
+        
+        # Convert RecipeDataForLLM model to dict
+        recipe_data_dict = validate_format_result.recipe_data.model_dump()
+        # Add source URL to the recipe data
+        recipe_data_dict['source_url'] = url
+        
+        # Create RecipeJSON instance (this will generate id and created_at)
+        recipe_json = RecipeJSON(**recipe_data_dict)
+        
         return UnifiedRecipeResult(
             success=True,
-            recipe_markdown=validate_format_result.recipe_markdown,
+            recipe_json=recipe_json.model_dump(),
             recipe_name=validate_format_result.recipe_name,
             extraction_url=url,
             is_valid_recipe=True,
@@ -666,7 +695,7 @@ def _extract_recursive(
     
     return UnifiedRecipeResult(
         success=False,
-        recipe_markdown=None,
+        recipe_json=None,
         recipe_name=validate_format_result.recipe_name,
         extraction_url=url,
         is_valid_recipe=False,
@@ -695,7 +724,7 @@ def extract_and_process_recipe(url: str) -> dict:
     **What this tool does:**
     1. Extracts content from the provided URL (supports websites, Instagram, YouTube, TikTok)
     2. Validates if content contains a complete recipe (ingredients + instructions)
-    3. Formats valid recipes into clean markdown
+    3. Formats valid recipes into structured JSON
     4. Detects follow-up URLs if no recipe found
     5. Automatically follows promising links (up to 1 additional URL)
     

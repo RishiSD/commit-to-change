@@ -5,7 +5,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 from langchain_core.messages import SystemMessage
 
-from .models import GeneratedRecipe
+from .models import GeneratedRecipe, RecipeDataForLLM, RecipeJSON
 
 
 @tool
@@ -29,13 +29,6 @@ def generate_recipe_from_knowledge(
     - Includes helpful information (prep time, cook time, servings, difficulty)
     - Contains useful tips and notes in the Additional Information section
     
-    Format Requirements:
-    - Use markdown structure with clear sections
-    - Start with # [Recipe Name]
-    - Include ## Ingredients section with bullet points
-    - Include ## Instructions section with numbered steps
-    - Include ## Additional Information section with timing, tips, etc.
-    
     Quality Standards:
     - Use accurate measurements (metric and/or imperial)
     - Provide realistic cooking times and temperatures
@@ -50,46 +43,45 @@ def generate_recipe_from_knowledge(
         
     Returns:
         GeneratedRecipe with:
-        - markdown (str): Complete recipe in markdown format
+        - success (bool): Whether generation succeeded
+        - recipe_json (dict): Complete recipe as structured JSON (if success=True)
         - recipe_name (str): Name of the recipe
+        - error (str): Error message if generation failed
         - source ('knowledge'): Always 'knowledge' for generated recipes
         
     Example output structure:
-    ```
-    # Chicken Tikka Masala
+    {
+        "success": true,
+        "recipe_json": {
+            "id": "uuid-here",
+            "title": "Chicken Tikka Masala",
+            "ingredients": [
+                {"name": "Chicken thighs", "quantity": 500, "unit": "g"},
+                {"name": "Yogurt", "quantity": 1, "unit": "cup"}
+            ],
+            "steps": [
+                "Marinate the chicken in yogurt...",
+                "Cook in sauce..."
+            ],
+            "tags": ["indian", "main-course"],
+            "servings": 4,
+            "prep_time": "30 minutes",
+            "cook_time": "30 minutes",
+            "total_time": "1 hour",
+            "difficulty": "medium",
+            "cuisine": "Indian",
+            "additional_info": [
+                "Marinate overnight for best results",
+                "Use full-fat yogurt for creamier sauce"
+            ]
+        },
+        "recipe_name": "Chicken Tikka Masala",
+        "error": null,
+        "source": "knowledge"
+    }
     
-    ## Ingredients
-    
-    ### For the Chicken Marinade:
-    - 1 lb boneless chicken thighs, cut into bite-sized pieces
-    - 1 cup plain yogurt
-    - 2 tbsp lemon juice
-    - ... (more ingredients)
-    
-    ### For the Sauce:
-    - ... (more ingredients)
-    
-    ## Instructions
-    
-    1. **Marinate the chicken:** In a large bowl, combine yogurt, lemon juice...
-    2. **Prepare the sauce:** Heat oil in a large pan over medium heat...
-    ... (more steps)
-    
-    ## Additional Information
-    
-    - **Prep Time:** 30 minutes (plus 2 hours marinating)
-    - **Cook Time:** 30 minutes
-    - **Servings:** 4-6
-    - **Difficulty:** Medium
-    
-    **Tips:**
-    - For best results, marinate overnight
-    - Use full-fat yogurt for creamier sauce
-    - Adjust spice level to taste
-    ```
-    
-    Note: This tool uses the LLM to generate the recipe directly from training
-    knowledge. Make it comprehensive and authentic!
+    Note: This tool uses the LLM with structured output to generate the recipe 
+    directly from training knowledge as structured JSON data.
     """
     try:
         # Import model dynamically
@@ -107,21 +99,39 @@ def generate_recipe_from_knowledge(
         else:
             model = init_chat_model("google_genai:gemini-2.5-flash-lite")
         
+        # Use structured output to generate RecipeDataForLLM
+        structured_model = model.with_structured_output(RecipeDataForLLM)
+        
         generation_prompt = f"""Generate a complete, authentic recipe for {recipe_name}.
 
 Follow these requirements:
 
-**Format:**
-- Start with # {recipe_name}
-- Include ## Ingredients section with bulleted list
-- Include ## Instructions section with numbered steps
-- Include ## Additional Information with prep time, cook time, servings, difficulty, and tips
+**Recipe Structure:**
+- title: The name of the recipe
+- ingredients: List of ingredients with name, quantity, and unit
+  * Parse quantities carefully (e.g., 2 cups → quantity: 2, unit: "cups")
+  * For ranges use strings (e.g., "2-3" for quantity)
+  * For "to taste" → quantity: "to taste", unit: ""
+- steps: Ordered list of clear, detailed cooking instructions
+- tags: Descriptive tags (cuisine type, dietary info, difficulty, meal type)
+- servings: Number of servings (integer)
+- prep_time: Preparation time (e.g., "15 minutes")
+- cook_time: Cooking time (e.g., "30 minutes")
+- total_time: Total time (e.g., "45 minutes")
+- difficulty: One of "easy", "medium", or "hard"
+- cuisine: Cuisine type (e.g., "Italian", "Indian", "Mexican")
+- additional_info: List of helpful tips including:
+  * Cooking tips and techniques for best results
+  * Common mistakes to avoid
+  * Storage instructions
+  * Possible substitutions or variations
+  * Serving suggestions
 
-**Quality:**
+**Quality Standards:**
 - Use accurate measurements and realistic cooking times
 - Include all necessary ingredients (don't assume common items)
-- Write clear instructions for home cooks
-- Add helpful tips and common mistakes to avoid
+- Write clear, detailed instructions for home cooks
+- Provide helpful tips and avoid common pitfalls
 - Suggest variations where appropriate
 
 **Authenticity:**
@@ -129,17 +139,28 @@ Follow these requirements:
 - Use traditional ingredients when appropriate
 - Provide culturally authentic preparations
 
-Generate the recipe in clean markdown format."""
+Generate the recipe as structured JSON data."""
         
-        # For simple generation, we don't need structured output
-        # The LLM will generate the markdown directly
-        response = model.invoke([SystemMessage(content=generation_prompt)])
+        # Generate structured recipe data
+        recipe_data_result = structured_model.invoke([SystemMessage(content=generation_prompt)])
         
-        markdown_content = response.content if hasattr(response, 'content') else str(response)
+        # Ensure we have a RecipeDataForLLM instance
+        if isinstance(recipe_data_result, dict):
+            recipe_data = RecipeDataForLLM(**recipe_data_result)
+        else:
+            recipe_data = recipe_data_result
+        
+        # Convert RecipeDataForLLM to RecipeJSON (adds id, created_at, source_url)
+        recipe_json = RecipeJSON(
+            **recipe_data.model_dump(),
+            source_url=None  # No URL for generated recipes
+        )
         
         result = GeneratedRecipe(
-            markdown=markdown_content,
+            success=True,
+            recipe_json=recipe_json.model_dump(),
             recipe_name=recipe_name,
+            error=None,
             source="knowledge"
         )
         return result.model_dump()
@@ -147,8 +168,10 @@ Generate the recipe in clean markdown format."""
     except Exception as e:
         # Fallback error
         result = GeneratedRecipe(
-            markdown=f"# {recipe_name}\n\n**Error:** Failed to generate recipe: {str(e)}",
+            success=False,
+            recipe_json=None,
             recipe_name=recipe_name,
+            error=f"Failed to generate recipe: {str(e)}",
             source="knowledge"
         )
         return result.model_dump()

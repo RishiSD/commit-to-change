@@ -6,8 +6,10 @@ agent nodes and tools. All tools in agent_v3 return instances of these models
 instead of plain dictionaries.
 """
 
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Union
 from pydantic import BaseModel, Field
+from datetime import datetime
+import uuid
 
 
 class ExtractionResult(BaseModel):
@@ -167,17 +169,140 @@ class IntentClassification(BaseModel):
         }
 
 
+class RecipeIngredient(BaseModel):
+    """
+    Single ingredient in a recipe with quantity and unit.
+    """
+    name: str = Field(description="Ingredient name (e.g., 'All-purpose flour')")
+    quantity: Union[float, str] = Field(
+        description="Quantity as number or string (e.g., 2.5, '2-3', 'to taste')"
+    )
+    unit: str = Field(
+        description="Unit of measurement (e.g., 'cups', 'g', 'cloves', 'pinch')"
+    )
+    
+    class Config:
+        extra = "forbid"  # Ensures additionalProperties: false
+        json_schema_extra = {
+            "example": {
+                "name": "All-purpose flour",
+                "quantity": 2.5,
+                "unit": "cups"
+            }
+        }
+
+
+class RecipeJSON(BaseModel):
+    """
+    Structured JSON representation of a recipe.
+    
+    Used by: extract_and_process_recipe, generate_recipe_from_knowledge (Agent V5)
+    """
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique recipe identifier (UUID)"
+    )
+    title: str = Field(description="Recipe name/title")
+    ingredients: List[RecipeIngredient] = Field(
+        description="List of ingredients with quantities"
+    )
+    steps: List[str] = Field(
+        description="Ordered list of instruction steps"
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="Descriptive tags (cuisine, diet, difficulty, etc.)"
+    )
+    created_at: str = Field(
+        default_factory=lambda: datetime.utcnow().isoformat() + "Z",
+        description="Creation timestamp (ISO 8601 format)"
+    )
+    
+    # Optional metadata fields
+    servings: Optional[int] = Field(
+        default=None,
+        description="Number of servings"
+    )
+    prep_time: Optional[str] = Field(
+        default=None,
+        description="Preparation time (e.g., '15 minutes')"
+    )
+    cook_time: Optional[str] = Field(
+        default=None,
+        description="Cooking time (e.g., '30 minutes')"
+    )
+    total_time: Optional[str] = Field(
+        default=None,
+        description="Total time (e.g., '45 minutes')"
+    )
+    difficulty: Optional[Literal["easy", "medium", "hard"]] = Field(
+        default=None,
+        description="Recipe difficulty level"
+    )
+    cuisine: Optional[str] = Field(
+        default=None,
+        description="Cuisine type (e.g., 'Italian', 'Indian')"
+    )
+    source_url: Optional[str] = Field(
+        default=None,
+        description="Original URL where recipe was extracted from"
+    )
+    additional_info: Optional[List[str]] = Field(
+        default=None,
+        description="Additional information like tips, storage instructions, substitutions, serving suggestions"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "title": "Creamy Garlic Pasta",
+                "ingredients": [
+                    {"name": "Pasta", "quantity": 200, "unit": "g"},
+                    {"name": "Garlic", "quantity": 3, "unit": "cloves"}
+                ],
+                "steps": [
+                    "Boil pasta according to package instructions",
+                    "Prepare garlic cream sauce",
+                    "Combine pasta with sauce and serve"
+                ],
+                "tags": ["quick", "vegetarian", "italian"],
+                "created_at": "2026-01-29T10:15:00Z",
+                "servings": 4,
+                "prep_time": "10 minutes",
+                "cook_time": "15 minutes",
+                "total_time": "25 minutes",
+                "difficulty": "easy",
+                "cuisine": "Italian",
+                "source_url": "https://example.com/recipe",
+                "additional_info": [
+                    "Use high-quality pasta for best results",
+                    "Can substitute cream with milk and butter",
+                    "Store leftovers in airtight container for up to 3 days"
+                ]
+            }
+        }
+
+
 class GeneratedRecipe(BaseModel):
     """
     Result from recipe generation from LLM knowledge.
     
     Returned by: generate_recipe_from_knowledge
     """
-    markdown: str = Field(
-        description="Generated recipe in markdown format"
+    success: bool = Field(
+        description="Whether recipe generation succeeded"
+    )
+    recipe_json: Optional[dict] = Field(
+        default=None,
+        description="Generated recipe as RecipeJSON structure (only if success=True)"
     )
     recipe_name: str = Field(
         description="Name of the generated recipe"
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error message if generation failed"
     )
     source: Literal["knowledge"] = Field(
         default="knowledge",
@@ -187,11 +312,73 @@ class GeneratedRecipe(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "markdown": "# Chicken Tikka Masala\n\n## Ingredients...",
+                "success": True,
+                "recipe_json": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "title": "Chicken Tikka Masala",
+                    "ingredients": [{"name": "Chicken", "quantity": 500, "unit": "g"}],
+                    "steps": ["Marinate chicken", "Cook in sauce"],
+                    "tags": ["indian", "main-course"],
+                    "created_at": "2026-01-29T10:15:00Z"
+                },
                 "recipe_name": "Chicken Tikka Masala",
+                "error": None,
                 "source": "knowledge"
             }
         }
+
+
+class RecipeDataForLLM(BaseModel):
+    """
+    Recipe data structure for LLM structured output.
+    
+    Similar to RecipeJSON but without auto-generated fields (id, created_at).
+    Used by ValidateAndFormatOutput for OpenAI structured output compatibility.
+    """
+    title: str = Field(description="Recipe name/title")
+    ingredients: List[RecipeIngredient] = Field(
+        description="List of ingredients with quantities"
+    )
+    steps: List[str] = Field(
+        description="Ordered list of instruction steps"
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="Descriptive tags (cuisine, diet, difficulty, etc.)"
+    )
+    
+    # Optional metadata fields
+    servings: Optional[int] = Field(
+        default=None,
+        description="Number of servings"
+    )
+    prep_time: Optional[str] = Field(
+        default=None,
+        description="Preparation time (e.g., '15 minutes')"
+    )
+    cook_time: Optional[str] = Field(
+        default=None,
+        description="Cooking time (e.g., '30 minutes')"
+    )
+    total_time: Optional[str] = Field(
+        default=None,
+        description="Total time (e.g., '45 minutes')"
+    )
+    difficulty: Optional[Literal["easy", "medium", "hard"]] = Field(
+        default=None,
+        description="Recipe difficulty level"
+    )
+    cuisine: Optional[str] = Field(
+        default=None,
+        description="Cuisine type (e.g., 'Italian', 'Indian')"
+    )
+    additional_info: Optional[List[str]] = Field(
+        default=None,
+        description="Additional information like tips, storage instructions, substitutions, serving suggestions"
+    )
+    
+    class Config:
+        extra = "forbid"  # This ensures additionalProperties: false in JSON schema
 
 
 class ValidateAndFormatOutput(BaseModel):
@@ -207,9 +394,9 @@ class ValidateAndFormatOutput(BaseModel):
     is_valid_recipe: bool = Field(
         description="True if content contains a complete recipe"
     )
-    recipe_markdown: Optional[str] = Field(
+    recipe_data: Optional[RecipeDataForLLM] = Field(
         default=None,
-        description="Formatted recipe markdown (only if valid recipe)"
+        description="Structured recipe data (only if valid recipe) - will be converted to RecipeJSON"
     )
     recipe_name: Optional[str] = Field(
         default=None,
@@ -240,10 +427,25 @@ class ValidateAndFormatOutput(BaseModel):
     )
     
     class Config:
+        extra = "forbid"  # Ensures additionalProperties: false for all fields
         json_schema_extra = {
             "example": {
                 "is_valid_recipe": True,
-                "recipe_markdown": "# Chocolate Chip Cookies\n\n## Ingredients...",
+                "recipe_data": {
+                    "title": "Chocolate Chip Cookies",
+                    "ingredients": [
+                        {"name": "Flour", "quantity": 2, "unit": "cups"}
+                    ],
+                    "steps": ["Mix ingredients", "Bake at 350F"],
+                    "tags": ["dessert", "easy"],
+                    "servings": 24,
+                    "prep_time": "15 minutes",
+                    "cook_time": "12 minutes",
+                    "additional_info": [
+                        "Chill dough for 30 minutes for thicker cookies",
+                        "Store in airtight container for up to 1 week"
+                    ]
+                },
                 "recipe_name": "Chocolate Chip Cookies",
                 "has_ingredients": True,
                 "has_instructions": True,
@@ -268,9 +470,9 @@ class UnifiedRecipeResult(BaseModel):
     success: bool = Field(
         description="Whether a valid recipe was successfully extracted and formatted"
     )
-    recipe_markdown: Optional[str] = Field(
+    recipe_json: Optional[dict] = Field(
         default=None,
-        description="Final formatted recipe in markdown (only if success=True)"
+        description="Final formatted recipe as JSON (only if success=True)"
     )
     recipe_name: Optional[str] = Field(
         default=None,
@@ -318,7 +520,14 @@ class UnifiedRecipeResult(BaseModel):
         json_schema_extra = {
             "example": {
                 "success": True,
-                "recipe_markdown": "# Chocolate Chip Cookies\n\n## Ingredients...",
+                "recipe_json": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "title": "Chocolate Chip Cookies",
+                    "ingredients": [{"name": "Flour", "quantity": 2, "unit": "cups"}],
+                    "steps": ["Mix ingredients", "Bake"],
+                    "tags": ["dessert"],
+                    "created_at": "2026-01-29T10:15:00Z"
+                },
                 "recipe_name": "Chocolate Chip Cookies",
                 "extraction_url": "https://example.com/recipe",
                 "is_valid_recipe": True,

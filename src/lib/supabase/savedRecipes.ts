@@ -15,7 +15,8 @@
  * - updated_at: TIMESTAMP
  */
 
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/lib/supabase/client";
+import { RecipeJSON } from "@/lib/types";
 
 // Types
 export interface SavedRecipe {
@@ -23,7 +24,7 @@ export interface SavedRecipe {
   user_id: string;
   recipe_url: string;
   recipe_name: string;
-  recipe_content: any; // JSONB - flexible structure
+  recipe_content: RecipeJSON; // Use RecipeJSON type instead of any
   created_at: string;
   updated_at: string;
 }
@@ -31,7 +32,7 @@ export interface SavedRecipe {
 export interface SaveRecipeInput {
   recipe_url: string;
   recipe_name: string;
-  recipe_content: any;
+  recipe_content: RecipeJSON; // Use RecipeJSON type instead of any
 }
 
 /**
@@ -51,14 +52,72 @@ export interface SaveRecipeInput {
  * ```
  */
 export async function saveRecipe(input: SaveRecipeInput): Promise<SavedRecipe> {
-  // TODO: Implement Supabase insert
-  // const supabase = createBrowserClient(...)
-  // const { data, error } = await supabase
-  //   .from('user_saved_recipes')
-  //   .insert({ ...input })
-  //   .select()
-  //   .single()
-  throw new Error("Not implemented - saveRecipe");
+  // Check if user is authenticated
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  if (authError || !session?.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const user = session.user;
+
+  // Insert recipe (upsert to handle duplicates based on recipe_url)
+  const { data, error } = await supabase
+    .from('user_saved_recipes')
+    .upsert({
+      user_id: user.id,
+      recipe_url: input.recipe_url || null,
+      recipe_name: input.recipe_name,
+      recipe_content: input.recipe_content,
+    }, {
+      onConflict: 'user_id,recipe_url',
+      ignoreDuplicates: false, // Update if exists
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error saving recipe:", error);
+    throw new Error(`Failed to save recipe: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Get a single saved recipe by ID
+ * 
+ * @param recipeId - UUID of the recipe to fetch
+ * @returns Promise<SavedRecipe | null> - The recipe record or null if not found
+ * @throws Error if fetch fails or user is not authenticated
+ * 
+ * @example
+ * ```typescript
+ * const recipe = await getRecipeById("123e4567-e89b-12d3-a456-426614174000");
+ * if (recipe) {
+ *   console.log(`Found recipe: ${recipe.recipe_name}`);
+ * }
+ * ```
+ */
+export async function getRecipeById(recipeId: string): Promise<SavedRecipe | null> {
+  // Check if user is authenticated
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  if (authError || !session?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Fetch the recipe (RLS ensures user can only access their own)
+  const { data, error } = await supabase
+    .from('user_saved_recipes')
+    .select('*')
+    .eq('id', recipeId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching recipe:", error);
+    throw new Error(`Failed to fetch recipe: ${error.message}`);
+  }
+
+  return data;
 }
 
 /**
@@ -74,13 +133,24 @@ export async function saveRecipe(input: SaveRecipeInput): Promise<SavedRecipe> {
  * ```
  */
 export async function getSavedRecipes(): Promise<SavedRecipe[]> {
-  // TODO: Implement Supabase select
-  // const supabase = createBrowserClient(...)
-  // const { data, error } = await supabase
-  //   .from('user_saved_recipes')
-  //   .select('*')
-  //   .order('created_at', { ascending: false })
-  throw new Error("Not implemented - getSavedRecipes");
+  // Check if user is authenticated
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  if (authError || !session?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Fetch all recipes for the user, sorted by most recent first
+  const { data, error } = await supabase
+    .from('user_saved_recipes')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching saved recipes:", error);
+    throw new Error(`Failed to fetch saved recipes: ${error.message}`);
+  }
+
+  return data || [];
 }
 
 /**
@@ -96,13 +166,22 @@ export async function getSavedRecipes(): Promise<SavedRecipe[]> {
  * ```
  */
 export async function deleteRecipe(recipeId: string): Promise<void> {
-  // TODO: Implement Supabase delete
-  // const supabase = createBrowserClient(...)
-  // const { error } = await supabase
-  //   .from('user_saved_recipes')
-  //   .delete()
-  //   .eq('id', recipeId)
-  throw new Error("Not implemented - deleteRecipe");
+  // Check if user is authenticated
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  if (authError || !session?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Delete the recipe (RLS ensures user can only delete their own)
+  const { error } = await supabase
+    .from('user_saved_recipes')
+    .delete()
+    .eq('id', recipeId);
+
+  if (error) {
+    console.error("Error deleting recipe:", error);
+    throw new Error(`Failed to delete recipe: ${error.message}`);
+  }
 }
 
 /**
@@ -121,15 +200,25 @@ export async function deleteRecipe(recipeId: string): Promise<void> {
  * ```
  */
 export async function isRecipeSaved(recipeUrl: string): Promise<boolean> {
-  // TODO: Implement Supabase existence check
-  // const supabase = createBrowserClient(...)
-  // const { data, error } = await supabase
-  //   .from('user_saved_recipes')
-  //   .select('id')
-  //   .eq('recipe_url', recipeUrl)
-  //   .maybeSingle()
-  // return !!data
-  throw new Error("Not implemented - isRecipeSaved");
+  // Check if user is authenticated
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  if (authError || !session?.user) {
+    return false; // Not authenticated = not saved
+  }
+
+  // Check if recipe exists
+  const { data, error } = await supabase
+    .from('user_saved_recipes')
+    .select('id')
+    .eq('recipe_url', recipeUrl)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error checking if recipe is saved:", error);
+    return false;
+  }
+
+  return !!data;
 }
 
 /**
@@ -152,13 +241,27 @@ export async function updateRecipe(
   recipeId: string,
   updates: Partial<Omit<SaveRecipeInput, "recipe_url">>
 ): Promise<SavedRecipe> {
-  // TODO: Implement Supabase update
-  // const supabase = createBrowserClient(...)
-  // const { data, error } = await supabase
-  //   .from('user_saved_recipes')
-  //   .update({ ...updates, updated_at: new Date().toISOString() })
-  //   .eq('id', recipeId)
-  //   .select()
-  //   .single()
-  throw new Error("Not implemented - updateRecipe");
+  // Check if user is authenticated
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  if (authError || !session?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Update the recipe (RLS ensures user can only update their own)
+  const { data, error } = await supabase
+    .from('user_saved_recipes')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', recipeId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating recipe:", error);
+    throw new Error(`Failed to update recipe: ${error.message}`);
+  }
+
+  return data;
 }

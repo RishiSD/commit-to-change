@@ -10,6 +10,8 @@
 
 "use client";
 
+import { Button } from "@/components/ui";
+
 interface HeaderProps {
   /** Callback when sign in button is clicked */
   onSignInClick: () => void;
@@ -45,16 +47,17 @@ export function Header({ onSignInClick, themeColor = "#9333ea" }: HeaderProps) {
           </div>
           
           {/* Sign In Button */}
-          <button
+          <Button
+            variant="primary"
             onClick={onSignInClick}
             style={{
               background: `linear-gradient(135deg, ${themeColor}, #ec4899)`,
               boxShadow: `0 0 20px ${themeColor}40`
             }}
-            className="px-6 py-2.5 rounded-lg text-white font-medium text-sm sm:text-base transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/50"
+            className="hover:scale-105 hover:shadow-lg transition-all duration-300"
           >
             Sign In
-          </button>
+          </Button>
         </div>
       </div>
     </header>

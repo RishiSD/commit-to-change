@@ -3,14 +3,14 @@
 import { LandingPage } from "@/components/landing/LandingPage";
 import { ChatInterface } from "@/components/ChatInterface";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
-import { useState, useEffect } from "react";
+import { useState, useLayoutEffect } from "react";
 
 export default function Home() {
   const { session, isLoading } = useSupabaseAuth();
   const [mounted, setMounted] = useState(false);
 
-  // Handle client-side mounting
-  useEffect(() => {
+  // Handle client-side mounting - hydration detection pattern
+  useLayoutEffect(() => {
     setMounted(true);
   }, []);
 

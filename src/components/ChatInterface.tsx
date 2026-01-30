@@ -3,16 +3,16 @@
 import { WeatherCard } from "@/components/weather";
 import { MoonCard } from "@/components/moon";
 import { RecipeSearchCard } from "@/components/recipe-search";
+import { RecipeCard } from "@/components/recipe/RecipeCard";
 import {
   useCoAgent,
-  useDefaultTool,
   useFrontendTool,
   useHumanInTheLoop,
   useRenderToolCall,
 } from "@copilotkit/react-core";
 import { CopilotKitCSSProperties, CopilotChat } from "@copilotkit/react-ui";
 
-const THEME_COLOR = "#9333ea";
+const THEME_COLOR = "#e86d4f";
 
 export function ChatInterface() {
   return (
@@ -29,7 +29,7 @@ export function ChatInterface() {
           "--copilot-kit-scrollbar-color": "rgba(147, 51, 234, 0.2)",
         } as CopilotKitCSSProperties
       }
-      className="relative h-screen w-screen overflow-hidden"
+      className="relative h-screen w-full overflow-hidden"
     >
       {/* Dark gradient background matching landing page */}
       <div 
@@ -147,52 +147,156 @@ function YourMainContent() {
         required: true,
       },
     ],
-    render: ({ status }) => {
+    render: ({ status, args, result }) => {
       // Show loading state during extraction
       if (status === "inProgress" || status === "executing") {
         return (
-          <div className="flex items-center gap-2 text-gray-600 text-sm py-2 px-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-3 p-4 bg-[var(--primary-50)] border-2 border-[var(--primary-200)] rounded-2xl shadow-md">
             <div 
-              className="h-4 w-4 border-2 rounded-full animate-spin"
+              className="h-5 w-5 border-3 rounded-full animate-spin"
               style={{ 
-                borderColor: THEME_COLOR,
+                borderWidth: '3px',
+                borderColor: 'var(--primary-500)',
                 borderTopColor: 'transparent'
               }}
             />
-            <span>Extracting recipe from URL...</span>
+            <div>
+              <p className="text-sm font-semibold text-[var(--primary-800)]">
+                Extracting recipe from URL...
+              </p>
+              <p className="text-xs text-[var(--primary-600)] mt-0.5">
+                {args.url && new URL(args.url).hostname}
+              </p>
+            </div>
           </div>
         );
       }
-      
-      // Return empty div when complete (agent will provide formatted response)
+
+      // Show recipe card when extraction is complete and successful
+      if (status === "complete" && result?.success && result?.recipe_json) {
+        console.log(
+          'Recipe extraction error:',
+          JSON.stringify(result, null, 2),
+        );
+        return <RecipeCard recipe={result.recipe_json} />;
+      }
+
+      // Show error state if extraction failed
+      if (status === "complete" && !result?.success) {
+        return (
+          <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl shadow-md">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  Could not extract recipe
+                </p>
+                <p className="text-xs text-red-600 mt-1">
+                  {result?.error || "Unknown error occurred"}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return <div className="hidden" />;
+    },
+  });
+
+  // 🪁 Recipe Generation: Custom UI for AI-generated recipes
+  useRenderToolCall({
+    name: "generate_recipe_from_knowledge",
+    description: "Generate recipe from AI knowledge",
+    parameters: [
+      {
+        name: "recipe_name",
+        type: "string",
+        description: "Name of recipe to generate",
+        required: true,
+      },
+    ],
+    render: ({ status, args, result }) => {
+      // Show loading state during generation
+      if (status === "inProgress" || status === "executing") {
+        return (
+          <div className="flex items-center gap-3 p-4 bg-[var(--secondary-50)] border-2 border-[var(--secondary-200)] rounded-2xl shadow-md">
+            <div 
+              className="h-5 w-5 border-3 rounded-full animate-spin"
+              style={{ 
+                borderWidth: '3px',
+                borderColor: 'var(--secondary-500)',
+                borderTopColor: 'transparent'
+              }}
+            />
+            <div>
+              <p className="text-sm font-semibold text-[var(--secondary-800)]">
+                Generating recipe from knowledge...
+              </p>
+              <p className="text-xs text-[var(--secondary-600)] mt-0.5">
+                {args.recipe_name}
+              </p>
+            </div>
+          </div>
+        );
+      }
+
+      // Show recipe card when generation is complete and successful
+      if (status === "complete" && result?.success && result?.recipe_json) {
+        return <RecipeCard recipe={result.recipe_json} />;
+      }
+
+      // Show error state if generation failed
+      if (status === "complete" && !result?.success) {
+        return (
+          <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl shadow-md">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  Could not generate recipe
+                </p>
+                <p className="text-xs text-red-600 mt-1">
+                  {result?.error || "Unknown error occurred"}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return <div className="hidden" />;
     },
   });
 
   return (
-    <div className="w-full max-w-4xl mx-auto" style={{ height: 'calc(100vh - 4rem)' }}>
-      {/* Chat container with clean card design */}
+    // Make chat use the full available width
+    <div className="w-full px-0 max-w-full overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
       <div className="relative w-full h-full">
-        {/* Bright glow effect */}
-        <div 
-          style={{ 
-            boxShadow: `0 0 80px ${THEME_COLOR}99, 0 0 150px ${THEME_COLOR}66`
-          }}
-          className="absolute inset-0 rounded-3xl blur-2xl"
-        />
-        
-        {/* Main chat card */}
-        <div className="relative bg-white rounded-3xl shadow-2xl h-full flex flex-col overflow-hidden">
-          {/* Chat interface wrapper with proper height */}
-          <div className="flex-1 min-h-0">
-            <CopilotChat
-              className="h-full"
-              disableSystemMessage={true}
-              labels={{
-                title: 'Aura Chef Assistant',
-                initial: "👋 Hi there! I'm your culinary AI assistant. How can I help you today?",
+        {/* Single full-width chat column */}
+        <div className="w-full h-full">
+          <div className="relative bg-white rounded-3xl shadow-2xl h-full flex flex-col overflow-hidden">
+            {/* Bright glow effect behind chat */}
+            <div 
+              style={{ 
+                boxShadow: `0 0 80px ${THEME_COLOR}99, 0 0 150px ${THEME_COLOR}66`
               }}
-              suggestions={[
+              className="absolute inset-0 rounded-3xl blur-2xl pointer-events-none"
+            />
+            {/* Chat interface wrapper with proper height */}
+            <div className="flex-1 min-h-0">
+              <CopilotChat
+                className="h-full w-full"
+                disableSystemMessage={true}
+                labels={{
+                  title: 'Aura Chef Assistant',
+                  initial: "👋 Hi there! I'm your culinary AI assistant. How can I help you today?",
+                }}
+                suggestions={[
                 {
                   title: 'Generative UI',
                   message: 'Get the weather in San Francisco.',
@@ -220,6 +324,7 @@ function YourMainContent() {
                 },
               ]}
             />
+            </div>
           </div>
         </div>
       </div>
