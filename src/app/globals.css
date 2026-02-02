@@ -204,3 +204,16 @@ html {
   transform: scale(1.02);
 }
 
+/* ============================================================================
+   HIDE TOOL CALL RESULTS FROM CHAT
+   Only custom UI from useRenderToolCall should be visible
+   Primary solution: JavaScript in ChatInterface.tsx
+   CSS Fallback: Hide assistant messages with code blocks (where JSON tool results appear)
+   ============================================================================ */
+
+/* Hide assistant messages containing code blocks (tool result JSON typically renders here) */
+.copilotKitAssistantMessage:has(pre),
+.copilotKitAssistantMessage:has(code) {
+  display: none !important;
+}
+

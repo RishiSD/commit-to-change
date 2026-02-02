@@ -17,10 +17,13 @@ export default function Home() {
   // Show loading state while checking authentication
   if (!mounted || isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
+      <div className="flex items-center justify-center h-screen bg-[var(--neutral-50)]">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
+          <div
+            className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 mb-4"
+            style={{ borderColor: 'var(--primary-500)' }}
+          ></div>
+          <p className="text-[var(--neutral-600)]">Loading...</p>
         </div>
       </div>
     );

@@ -85,7 +85,7 @@ export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }
        {/* Sidebar (relative/flex on lg+, fixed drawer on mobile) */}
         {/* Mobile: Only show <aside> when expanded. Desktop: always present */}
           <aside
-            className={`fixed z-50 top-0 left-0 h-screen bg-white shadow-xl transition-all duration-300 ease-in-out flex flex-col ${
+            className={`fixed z-50 top-0 left-0 h-screen bg-[var(--copilot-kit-background-color)] shadow-xl transition-all duration-300 ease-in-out flex flex-col ${
               collapsed ? 'hidden lg:flex lg:w-16' : 'w-64'
             }`}
             style={{ transitionProperty: 'width, transform' }}
@@ -93,11 +93,12 @@ export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }
         {/* Toggle Button */}
          {/* Sidebar toggle: Always show button on desktop; on mobile, show burger in app shell */}
           {/* Desktop: floating toggle (half outside the sidebar edge) */}
-           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex items-center justify-center absolute -right-4 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 rounded-full shadow p-2 hover:shadow-lg transition-all duration-200 focus:outline-none"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
+            <button
+             onClick={() => setCollapsed(!collapsed)}
+             className="hidden lg:flex items-center justify-center absolute -right-4 top-1/2 transform -translate-y-1/2 rounded-full p-2 hover:shadow-lg transition-all duration-200 focus:outline-none"
+             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+             style={{ background: 'white', border: '1px solid var(--neutral-200)', boxShadow: '0 8px 22px rgba(232,109,79,0.08)' }}
+           >
             <svg
               className={`w-4 h-4 text-gray-600 transition-transform duration-200 ${collapsed ? 'rotate-180' : 'rotate-0'}`}
               fill="none"
@@ -122,11 +123,11 @@ export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }
         {/* Sidebar Content */}
               <div className="flex flex-col h-full">
           {/* Logo/Brand */}
-          <div className="flex items-center h-16 px-4 border-b border-gray-200">
+           <div className="flex items-center h-16 px-4 border-b" style={{ borderColor: 'var(--neutral-200)' }}>
             {!collapsed ? (
               <Link href="/" className="flex items-center space-x-2">
                 <span className="text-2xl">🍳</span>
-                <span className="font-bold text-lg text-purple-600">
+                <span className="font-bold text-lg text-[var(--primary-500)]">
                   Aura Chef
                 </span>
               </Link>
@@ -158,8 +159,8 @@ export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }
                   onClick={handleNavClick}
                   className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ${
                     isActive
-                      ? "bg-purple-50 text-purple-600 font-medium"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-purple-600"
+                      ? "bg-[var(--primary-50)] text-[var(--primary-600)] font-medium"
+                      : "text-[var(--neutral-700)] hover:bg-[var(--neutral-100)] hover:text-[var(--primary-600)]"
                   }`}
                   title={collapsed ? item.label : undefined}
                 >
@@ -174,7 +175,7 @@ export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }
 
            {/* Logout button (visible for authenticated user) */}
             {user && (
-              <div className="border-t border-gray-200 p-3">
+              <div className="border-t p-3" style={{ borderColor: 'var(--neutral-200)' }}>
                 {/* Show only icon when sidebar is collapsed; full button when expanded */}
                 {collapsed ? (
                   <div className="w-full flex items-center justify-center">
@@ -182,7 +183,7 @@ export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }
                       onClick={onSignOut}
                       title="Logout"
                       aria-label="Logout"
-                      className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-150"
+                      className="p-2 rounded-md hover:bg-[var(--neutral-100)] transition-colors duration-150"
                     >
                       <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -192,7 +193,7 @@ export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }
                 ) : (
                   <button
                     onClick={onSignOut}
-                    className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+                    className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--neutral-700)] hover:bg-[var(--neutral-100)] transition-colors duration-150"
                   >
                     <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

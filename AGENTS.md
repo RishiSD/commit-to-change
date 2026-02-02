@@ -1,186 +1,169 @@
 # Agent Development Guide
 
-This document provides essential information for AI coding agents working in this repository.
+AI coding agent instructions for the Aura Chef repository.
 
 ## Project Overview
 
-This is a CopilotKit + LangGraph starter project with a Next.js frontend (`aura-chef/`) and Python LangGraph agent (`aura-chef/agent/`). The project demonstrates AI agent integration with generative UI, frontend tools, human-in-the-loop patterns, and shared state management.
+CopilotKit + LangGraph project with Next.js frontend and Python agent. Extracts recipes from URLs using AI with generative UI, shared state, and Supabase auth.
+
+**Stack:** Next.js 16 + React 19 + TypeScript + Tailwind 4 + CopilotKit 1.51 | Python 3.12 + LangGraph + FastAPI
 
 ## Directory Structure
 
 ```
-aura-chef/
-├── src/                    # Next.js frontend
-│   ├── app/               # Next.js app router pages
-│   ├── components/        # React components
-│   └── lib/               # Types and utilities
-├── agent/                 # Python LangGraph agent
-│   ├── main.py           # Agent entry point
-│   ├── pyproject.toml    # Python dependencies
-│   └── langgraph.json    # LangGraph configuration
-└── public/               # Static assets
+ aura-chef/
+├── src/
+│   ├── app/                 # Next.js pages
+│   ├── components/          # React components
+│   ├── hooks/               # Custom hooks (useSupabaseAuth)
+│   └── lib/                 # Types, Supabase clients
+├── agent/                   # Python LangGraph agent
+│   ├── server.py           # FastAPI server entry
+│   ├── agent_v5.py         # Main agent graph
+│   ├── tools/              # LangGraph tools
+│   └── utils/              # Python utilities
+└── public/
 ```
 
 ## Build, Lint, and Test Commands
 
-### Frontend (Next.js/TypeScript)
+### Frontend (Next.js)
 
 ```bash
-# Install dependencies (from aura-chef/)
-pnpm install              # Recommended
-npm install               # Alternative
-
-# Development
-pnpm dev                  # Start both UI and agent
-pnpm dev:ui               # Start only Next.js UI
-pnpm dev:agent            # Start only LangGraph agent
-pnpm dev:debug            # Start with debug logging
-
-# Build and Production
-pnpm build                # Build Next.js for production
-pnpm start                # Start production server
-
-# Linting
-pnpm lint                 # Run ESLint on all files
-pnpm lint -- --fix        # Auto-fix linting issues
+pnpm install              # Install dependencies
+pnpm dev                  # Start UI + agent concurrently
+pnpm dev:ui               # Next.js only (port 3000)
+pnpm dev:agent            # Agent only (port 8123)
+pnpm dev:debug            # With debug logging
+pnpm build                # Production build
+pnpm start                # Production server
+pnpm lint                 # ESLint
+pnpm lint -- --fix        # Auto-fix issues
 ```
 
 ### Python Agent
 
 ```bash
-# Install dependencies (from aura-chef/agent/)
-uv sync                   # Install/sync Python dependencies
-
-# Development
-cd agent && npx @langchain/langgraph-cli dev --port 8123
-
-# No test framework currently configured
+cd agent && uv sync       # Install Python deps
+python server.py          # Start FastAPI server
 ```
 
-### Running Single Tests
+### Single Test Commands
 
-Currently, no test framework is configured. To add testing:
+**No test framework configured yet.**
 
-**Frontend (Jest/Vitest):**
-```bash
-# Would run: pnpm test path/to/file.test.ts
-# Not yet implemented
-```
-
-**Python (pytest):**
-```bash
-# Would run: pytest agent/tests/test_specific.py::test_function
-# Not yet implemented
-```
+Frontend would use: `pnpm test path/to/file.test.ts`
+Python would use: `pytest agent/tests/test_file.py::test_func`
 
 ## Code Style Guidelines
 
 ### TypeScript/React
 
 **Imports:**
-- Use absolute imports with `@/` prefix: `import { Foo } from "@/lib/types"`
-- Group imports: React/Next.js → Third-party → Internal
-- Use named imports from `@copilotkit/react-core` and `@copilotkit/react-ui`
+- Absolute imports with `@/` prefix: `import { RecipeJSON } from "@/lib/types"`
+- Group: React/Next → Third-party → Internal
+- Named imports from `@copilotkit/react-core`, `@copilotkit/react-ui`
 
 **Formatting:**
-- Use 2 spaces for indentation
+- 2 spaces indentation
 - Double quotes for strings
 - Semicolons required
-- Trailing commas in multiline objects/arrays
+- Trailing commas in multiline
 
 **Types:**
-- Use TypeScript strict mode (`strict: true`)
-- Always define prop types for components
-- Avoid `any` - use specific types or `unknown`
-- Define state types that align with Python agent state
+- Strict mode enabled (`strict: true`)
+- Define prop interfaces: `interface RecipeCardProps { recipe: RecipeJSON }`
+- Avoid `any`, use `unknown` or specific types
+- Align TypeScript types with Python `AgentState`
 
-**Naming Conventions:**
-- Components: PascalCase (`WeatherCard.tsx`)
-- Files: lowercase with hyphens for non-components
-- Hooks: camelCase starting with `use`
+**Naming:**
+- Components: PascalCase (`RecipeCard.tsx`)
+- Files: lowercase-with-hyphens for non-components
+- Hooks: camelCase with `use` prefix
 - Constants: UPPER_SNAKE_CASE
 
-**React Patterns:**
-- Use functional components with hooks
-- Use `"use client"` directive for client components
-- Destructure props in function parameters
-- Use CopilotKit hooks: `useCoAgent`, `useFrontendTool`, `useRenderToolCall`, `useHumanInTheLoop`
+**Patterns:**
+- Functional components with hooks
+- `"use client"` for client components
+- Destructure props in parameters
+- `useLayoutEffect` for hydration detection
+- CopilotKit hooks: `useCoAgent`, `useRenderToolCall`
 
 **Error Handling:**
-- Handle async operations with try/catch
-- Provide user feedback for errors
-- Log errors for debugging
+- try/catch for async operations
+- `toast` from react-hot-toast for user feedback
+- Console.error for debugging
 
-### Python (LangGraph Agent)
+### Python (LangGraph)
 
 **Imports:**
-- Group: Standard library → Third-party → Local
-- One import per line for clarity
+```python
+import os                           # Standard library
+from langchain.chat_models import init_chat_model  # Third-party
+from tools.unified_extraction import extract_and_process_recipe  # Local
+```
 
 **Formatting:**
-- Use 4 spaces for indentation
-- Follow PEP 8 style guide
-- Use double quotes for docstrings, single quotes for strings
+- 4 spaces indentation
+- PEP 8 style
+- Double quotes for docstrings, single for strings
 
 **Types:**
-- Use type hints for function parameters and return values
-- Use `typing` module for complex types (`List`, `Dict`, etc.)
-- Define state schemas with Pydantic/CopilotKitState
+- Type hints required: `def func(url: str) -> dict:`
+- Use `typing` module: `Optional`, `List`, `Dict`
+- State schemas extend `CopilotKitState`
 
-**Naming Conventions:**
+**Naming:**
 - Functions/variables: snake_case
 - Classes: PascalCase
 - Constants: UPPER_SNAKE_CASE
-- Tools: descriptive snake_case names
+- Tools: descriptive snake_case
 
 **LangGraph Patterns:**
-- Extend `CopilotKitState` for shared state
-- Use `@tool` decorator for tool definitions
-- Include detailed docstrings for tools (agent uses them)
-- Use `create_agent()` with CopilotKitMiddleware
+- Extend `CopilotKitState` for state
+- `@tool` decorator for tools
+- Detailed docstrings (agent reads them)
+- `create_agent()` with tools array
 
 **Error Handling:**
-- Use try/except for external API calls
-- Return descriptive error messages
-- Log errors appropriately
+- try/except for external APIs
+- Return descriptive error dicts: `{"success": False, "error": "..."}`
 
-## Configuration Files
+## Key Configuration
 
-- **tsconfig.json**: TypeScript strict mode, path aliases with `@/*`
-- **eslint.config.mjs**: Next.js ESLint rules, TypeScript support
-- **next.config.ts**: Server external packages for CopilotKit
-- **pyproject.toml**: Python dependencies, requires Python >=3.12
-- **langgraph.json**: Agent configuration, graph definitions
+- **tsconfig.json:** Strict mode, `@/*` path aliases
+- **eslint.config.mjs:** Next.js + TypeScript rules
+- **next.config.ts:** `serverExternalPackages: ["@copilotkit/runtime"]`
+- **pyproject.toml:** Python >=3.12, uv package manager
 
 ## Important Notes
 
-- **Package Manager**: Project ignores lock files to support multiple managers (pnpm recommended)
-- **API Keys**: Store in `agent/.env` (OPENAI_API_KEY or other LLM keys)
-- **Ports**: UI runs on 3000, agent on 8123
-- **State Sync**: Keep TypeScript types in `src/lib/types.ts` aligned with Python `AgentState`
-- **CopilotKit Version**: Using v1.51.0 - check docs at docs.copilotkit.ai
-- **Agent Runtime**: LangGraph agent must be running for CopilotKit to function
+- **API Keys:** Store in `agent/.env` (OPEN_ROUTER_API_KEY or GOOGLE_API_KEY)
+- **Ports:** UI on 3000, agent on 8123
+- **State Sync:** Keep `src/lib/types.ts` aligned with Python `AgentState` class
+- **Auth:** Supabase JWT passed via CopilotKit properties
+- **Agent:** Must be running for CopilotKit to function
 
 ## Common Tasks
 
-**Adding a frontend tool:**
-1. Use `useFrontendTool()` hook in component
-2. Define name, description, and parameters
-3. Implement handler function
+**Add frontend tool:**
+1. Use `useFrontendTool()` hook
+2. Define name, description, parameters
+3. Implement handler
 
-**Adding a backend tool:**
-1. Define tool with `@tool` decorator in `agent/main.py`
-2. Add to tools array in `create_agent()`
-3. Tool will be automatically available to agent
+**Add backend tool:**
+1. Create `@tool` decorated function in `agent/tools/`
+2. Add to tools array in `agent_v5.py`
+3. Import and use in agent
 
-**Adding generative UI:**
-1. Create component for UI rendering
-2. Use `useRenderToolCall()` hook with tool name
-3. Backend tool triggers UI render
+**Add generative UI:**
+1. Create component (e.g., `RecipeCard.tsx`)
+2. Use `useRenderToolCall()` with tool name
+3. Backend tool triggers UI render via state
 
-**Updating shared state:**
-1. Update `AgentState` class in Python
-2. Update `AgentState` type in TypeScript
+**Update shared state:**
+1. Update Python `AgentState` class
+2. Update TypeScript `AgentState` type
 3. Use `setState()` from `useCoAgent()` hook
 
 ## Resources

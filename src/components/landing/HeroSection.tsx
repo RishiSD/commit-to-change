@@ -21,39 +21,39 @@ interface HeroSectionProps {
 
 export function HeroSection({ 
   onGetStartedClick, 
-  themeColor = "#9333ea" 
+  themeColor = "var(--primary-500)" 
 }: HeroSectionProps) {
   return (
-    <section className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 pt-20">
+    <section className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 pt-20 bg-[var(--neutral-50)]">
       {/* Floating orbs background effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div 
-          style={{ 
-            background: `radial-gradient(circle at 20% 30%, ${themeColor}30, transparent 50%)`
+        <div
+          style={{
+            background: `radial-gradient(circle at 20% 30%, var(--primary-300), transparent 50%)`
           }}
           className="absolute top-20 left-10 w-96 h-96 rounded-full blur-3xl animate-float-slow"
         />
         <div 
           style={{ 
-            background: `radial-gradient(circle at 80% 70%, #ec489930, transparent 50%)`
+            background: `radial-gradient(circle at 80% 70%, var(--secondary-300), transparent 50%)`
           }}
           className="absolute bottom-20 right-10 w-96 h-96 rounded-full blur-3xl animate-float-slower"
         />
       </div>
       
-      {/* Main content */}
-      <div className="relative max-w-5xl mx-auto text-center animate-fade-in">
+        {/* Main content */}
+        <div className="relative max-w-5xl mx-auto text-center animate-fade-in">
         {/* Badge/Tag */}
-        <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm mb-8">
+        <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-white/90 border border-[var(--neutral-100)] backdrop-blur-sm mb-8">
           <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-sm text-gray-300">Powered by AI</span>
+          <span className="text-sm text-[var(--neutral-700)]">Powered by AI</span>
         </div>
         
         {/* Main Headline */}
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-[var(--neutral-800)]">
           <span 
-            style={{
-              background: `linear-gradient(135deg, white, ${themeColor}, #ec4899)`,
+          style={{
+              background: `linear-gradient(135deg, var(--primary-500), var(--secondary-500))`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text"
@@ -62,13 +62,13 @@ export function HeroSection({
           >
             Your AI Culinary
           </span>
-          <span className="text-white block">
+          <span className="block" style={{ color: 'var(--primary-700)' }}>
             Assistant
           </span>
         </h1>
         
         {/* Tagline */}
-        <p className="text-xl sm:text-2xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-xl sm:text-2xl text-[var(--neutral-600)] mb-12 max-w-2xl mx-auto leading-relaxed">
           Transform your cooking with intelligent recipe guidance, personalized meal plans, and real-time assistance.
         </p>
         
@@ -77,8 +77,8 @@ export function HeroSection({
           <button
             onClick={onGetStartedClick}
             style={{
-              background: `linear-gradient(135deg, ${themeColor}, #ec4899)`,
-              boxShadow: `0 0 40px ${themeColor}60, 0 0 80px ${themeColor}30`
+               background: `linear-gradient(135deg, var(--primary-500), var(--secondary-500))`,
+               boxShadow: `0 0 40px var(--primary-500)60, 0 0 80px var(--primary-500)30`
             }}
             className="group relative px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden"
           >
@@ -104,29 +104,11 @@ export function HeroSection({
           </button>
           
           {/* Secondary info */}
-          <div className="flex items-center space-x-2 text-gray-400 text-sm">
+           <div className="flex items-center space-x-2 text-[var(--neutral-500)] text-sm">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             <span>Free to start, no credit card required</span>
-          </div>
-        </div>
-        
-        {/* Stats or social proof (optional) */}
-        <div className="mt-16 pt-8 border-t border-white/10">
-          <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
-            <div>
-              <div className="text-3xl font-bold text-white mb-1">10K+</div>
-              <div className="text-sm text-gray-400">Recipes</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-white mb-1">50K+</div>
-              <div className="text-sm text-gray-400">Users</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-white mb-1">4.9/5</div>
-              <div className="text-sm text-gray-400">Rating</div>
-            </div>
           </div>
         </div>
       </div>

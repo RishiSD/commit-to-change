@@ -5,12 +5,15 @@ import { MoonCard } from "@/components/moon";
 import { RecipeSearchCard } from "@/components/recipe-search";
 import { RecipeCard } from "@/components/recipe/RecipeCard";
 import {
+  CatchAllActionRenderProps,
   useCoAgent,
+  useCopilotAction,
   useFrontendTool,
   useHumanInTheLoop,
   useRenderToolCall,
 } from "@copilotkit/react-core";
 import { CopilotKitCSSProperties, CopilotChat } from "@copilotkit/react-ui";
+import { useEffect } from "react";
 
 const THEME_COLOR = "#e86d4f";
 
@@ -29,16 +32,8 @@ export function ChatInterface() {
           "--copilot-kit-scrollbar-color": "rgba(147, 51, 234, 0.2)",
         } as CopilotKitCSSProperties
       }
-      className="relative h-screen w-full overflow-hidden"
+    className="relative h-screen w-full overflow-hidden bg-[var(--neutral-50)]"
     >
-      {/* Dark gradient background matching landing page */}
-      <div 
-        className="fixed inset-0 -z-10"
-        style={{
-          background: "linear-gradient(to bottom, #0a0a0a 0%, #1a0a2e 50%, #0a0a0a 100%)"
-        }}
-      />
-
       {/* Floating orbs background effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div 
@@ -68,6 +63,52 @@ function YourMainContent() {
   const { state, setState } = useCoAgent({
     name: "sample_agent",
   });
+
+  // Hide tool call result JSON messages from chat - only show custom UI from useRenderToolCall
+  useEffect(() => {
+    const hideToolResults = () => {
+      // Find all assistant messages in the chat
+      const messages = document.querySelectorAll('.copilotKitAssistantMessage, .copilotKitMessage');
+      
+      messages.forEach((message) => {
+        const text = message.textContent || '';
+        
+        // Check if this message contains tool result JSON patterns
+        const hasToolResultPattern = 
+          (text.includes('"success"') && text.includes('"recipe_json"')) ||
+          (text.includes('"success"') && text.includes('"error"') && text.includes('extraction')) ||
+          (text.includes('"success"') && text.includes('"source"') && text.includes('knowledge'));
+        
+        // Check if message contains code blocks or pre tags (where JSON is typically rendered)
+        const hasCodeBlock = message.querySelector('pre, code') !== null;
+        
+        // Hide messages that contain tool results in code blocks
+        if (hasToolResultPattern && hasCodeBlock) {
+          (message as HTMLElement).style.display = 'none';
+        }
+      });
+    };
+
+    // Run initially and whenever new messages might be added
+    hideToolResults();
+    
+    // Set up a MutationObserver to handle dynamically added messages
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          hideToolResults();
+        }
+      });
+    });
+
+    // Observe the chat messages container
+    const chatContainer = document.querySelector('.copilotKitMessages, .copilotKitMessagesContainer');
+    if (chatContainer) {
+      observer.observe(chatContainer, { childList: true, subtree: true });
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   // 🪁 Frontend Actions: https://docs.copilotkit.ai/coagents/frontend-actions
   useFrontendTool({
@@ -270,6 +311,23 @@ function YourMainContent() {
       }
 
       return <div className="hidden" />;
+    },
+  });
+
+  useCopilotAction({
+    name: '*',
+    render: ({ name, args, status, result }: CatchAllActionRenderProps<[]>) => {
+      return (
+        <div className="m-4 p-4 bg-gray-100 rounded shadow">
+          <h2 className="text-sm font-medium">Tool: {name}</h2>
+          <pre className="mt-2 text-xs overflow-auto">
+            {JSON.stringify(args, null, 2)}
+          </pre>
+          {status === 'complete' && (
+            <div className="mt-2 text-xs text-green-600">✓ Complete</div>
+          )}
+        </div>
+      );
     },
   });
 

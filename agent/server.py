@@ -180,7 +180,7 @@ def main():
     """
     Run the uvicorn server.
     """
-    port = int(os.getenv("PORT", "8123"))
+    port = int(os.getenv("PORT", "8080"))
     host = os.getenv("HOST", "0.0.0.0")
     
     print(f"\n{'='*60}")

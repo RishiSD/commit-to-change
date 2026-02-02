@@ -209,7 +209,7 @@ export default function RecipeDetailPage() {
 
             {/* Time Information */}
             {(recipeContent.prep_time || recipeContent.cook_time || recipeContent.total_time) && (
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+              <div className="flex flex-wrap gap-4 text-sm text-[var(--neutral-500)]">
                 {recipeContent.prep_time && (
                   <div className="flex items-center">
                     <span className="font-medium mr-1">Prep:</span>
@@ -248,9 +248,9 @@ export default function RecipeDetailPage() {
             <div className="grid md:grid-cols-2 gap-8">
               {/* Ingredients */}
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <h2 className="text-xl font-bold text-[var(--neutral-800)] mb-4 flex items-center">
                   <svg
-                    className="w-5 h-5 mr-2 text-purple-600"
+                    className="w-5 h-5 mr-2 text-[var(--primary-600)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -266,8 +266,8 @@ export default function RecipeDetailPage() {
                 </h2>
                 <ul className="space-y-2">
                   {recipeContent.ingredients.map((ingredient, index) => (
-                    <li key={index} className="flex items-start text-gray-700">
-                      <span className="inline-block w-2 h-2 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    <li key={index} className="flex items-start text-[var(--neutral-600)]">
+                      <span className="inline-block w-2 h-2 bg-[var(--primary-500)] rounded-full mt-2 mr-3 flex-shrink-0"></span>
                       <span>
                         {ingredient.quantity} {ingredient.unit} {ingredient.name}
                       </span>
@@ -278,9 +278,9 @@ export default function RecipeDetailPage() {
 
               {/* Instructions */}
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <h2 className="text-xl font-bold text-[var(--neutral-800)] mb-4 flex items-center">
                   <svg
-                    className="w-5 h-5 mr-2 text-purple-600"
+                    className="w-5 h-5 mr-2 text-[var(--primary-600)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -296,8 +296,8 @@ export default function RecipeDetailPage() {
                 </h2>
                 <ol className="space-y-4">
                   {recipeContent.steps.map((step, index) => (
-                    <li key={index} className="flex items-start text-gray-700">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-600 text-white rounded-full text-sm font-bold mr-3 flex-shrink-0 mt-0.5">
+                    <li key={index} className="flex items-start text-[var(--neutral-600)]">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-[var(--primary-500)] text-white rounded-full text-sm font-bold mr-3 flex-shrink-0 mt-0.5">
                         {index + 1}
                       </span>
                       <span>{step}</span>
@@ -309,10 +309,10 @@ export default function RecipeDetailPage() {
 
             {/* Additional Info */}
             {recipeContent.additional_info && recipeContent.additional_info.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+              <div className="mt-8 pt-6 border-t border-[var(--neutral-200)]">
+                <h2 className="text-xl font-bold text-[var(--neutral-800)] mb-4 flex items-center">
                   <svg
-                    className="w-5 h-5 mr-2 text-purple-600"
+                    className="w-5 h-5 mr-2 text-[var(--primary-600)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -328,8 +328,8 @@ export default function RecipeDetailPage() {
                 </h2>
                 <ul className="space-y-2">
                   {recipeContent.additional_info.map((info, index) => (
-                    <li key={index} className="flex items-start text-gray-700">
-                      <span className="inline-block w-2 h-2 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    <li key={index} className="flex items-start text-[var(--neutral-600)]">
+                      <span className="inline-block w-2 h-2 bg-[var(--primary-500)] rounded-full mt-2 mr-3 flex-shrink-0"></span>
                       <span>{info}</span>
                     </li>
                   ))}
@@ -339,12 +339,12 @@ export default function RecipeDetailPage() {
 
             {/* Source URL */}
             {recipeContent.source_url && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="mt-6 pt-6 border-t border-[var(--neutral-200)]">
                 <a
                   href={recipeContent.source_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center text-purple-600 hover:text-purple-700 font-medium transition-colors"
+                  className="inline-flex items-center text-[var(--primary-600)] hover:text-[var(--primary-700)] font-medium transition-colors"
                 >
                   <svg
                     className="w-5 h-5 mr-2"

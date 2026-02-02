@@ -26,16 +26,11 @@ interface LoginModalProps {
   onClose?: () => void;
 }
 
-export function LoginModal({ themeColor = "#9333ea", onClose }: LoginModalProps) {
+export function LoginModal({ themeColor = "#e86d4f", onClose }: LoginModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Dark gradient background matching landing page */}
-      <div 
-        className="fixed inset-0 -z-10"
-        style={{
-          background: "linear-gradient(to bottom, #0a0a0a 0%, #1a0a2e 50%, #0a0a0a 100%)"
-        }}
-      />
+      {/* Neutral background */}
+      <div className="fixed inset-0 -z-10 bg-[var(--neutral-50)]" />
       
       {/* Modal card */}
       <div className="relative z-10 w-full max-w-md mx-4">

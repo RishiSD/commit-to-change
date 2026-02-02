@@ -15,12 +15,8 @@ def generate_recipe_from_knowledge(
 ) -> dict:
     """Generate a complete, authentic recipe from your knowledge base.
     
-    IMPORTANT: Only call this tool AFTER you have:
-    1. Used the frontend tool 'provide_recipe_from_knowledge' to get user approval
-    2. Received APPROVED status from the user
-    
-    If the user CANCELS the approval, do not call this tool. Instead, politely 
-    inform them they can provide a URL for recipe extraction.
+    Call this tool immediately after extracting a valid recipe name.
+    DO NOT ask the user for confirmation - generate the recipe right away.
     
     When generating the recipe, ensure it is:
     - Authentic and accurate for the cuisine/dish type
