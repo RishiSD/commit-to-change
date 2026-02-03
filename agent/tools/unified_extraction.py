@@ -70,15 +70,149 @@ def extract_instagram_shortcode(url: str) -> str:
     raise ValueError(f"Could not extract shortcode from Instagram URL: {url}")
 
 
-def extract_text_from_instagram(url: str) -> tuple[str, str]:
+# Instagram session cache (singleton pattern)
+_instagram_loader_cache = {"loader": None, "authenticated": False, "last_attempt": None}
+
+
+def get_authenticated_instagram_loader():
     """
-    Extract text from Instagram post/reel using instaloader.
+    Get an Instaloader instance, authenticated if credentials available.
+    
+    Returns:
+        Tuple of (loader_instance, is_authenticated)
+        
+    Implementation:
+    - Checks environment for INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD
+    - Caches successful login to avoid re-authenticating on every call
+    - Falls back to anonymous loader if login fails or no credentials
+    - Thread-safe via module-level caching
+    """
+    import instaloader
+    import os
+    import time
+    
+    # Check cache first (avoid re-login on every call)
+    cache_ttl = 3600  # 1 hour cache
+    if _instagram_loader_cache["loader"] is not None:
+        if _instagram_loader_cache["last_attempt"] and \
+           (time.time() - _instagram_loader_cache["last_attempt"]) < cache_ttl:
+            return _instagram_loader_cache["loader"], _instagram_loader_cache["authenticated"]
+    
+    # Create new loader
+    loader = instaloader.Instaloader()
+    
+    # Disable downloads (we only need metadata)
+    loader.download_pictures = False
+    loader.download_videos = False
+    loader.download_video_thumbnails = False
+    loader.download_geotags = False
+    loader.download_comments = False
+    loader.save_metadata = False
+    
+    # Attempt authentication
+    username = os.getenv("INSTAGRAM_USERNAME")
+    password = os.getenv("INSTAGRAM_PASSWORD")
+    
+    authenticated = False
+    if username and password:
+        try:
+            print(f"Attempting Instagram login for user: {username}")
+            loader.login(username, password)
+            authenticated = True
+            print("Instagram login successful")
+        except instaloader.exceptions.BadCredentialsException:
+            print(f"WARNING: Instagram login failed - invalid credentials for {username}")
+        except instaloader.exceptions.ConnectionException as e:
+            print(f"WARNING: Instagram login failed - connection error: {e}")
+        except Exception as e:
+            print(f"WARNING: Instagram login failed - {type(e).__name__}: {e}")
+    else:
+        print("INFO: No Instagram credentials found in environment, using anonymous access")
+    
+    # Cache result
+    _instagram_loader_cache["loader"] = loader
+    _instagram_loader_cache["authenticated"] = authenticated
+    _instagram_loader_cache["last_attempt"] = time.time()
+    
+    return loader, authenticated
+
+
+def extract_instagram_with_html(url: str) -> tuple[str, str]:
+    """
+    Extract Instagram content using HTML meta tags (PRIMARY METHOD).
+    
+    Extracts content from meta tags in fallback order:
+    1. <meta name="description" content="...">
+    2. <meta property="og:title" content="...">
+    3. <meta property="og:description" content="...">
+    
+    Returns the first non-empty meta tag found.
     
     Args:
         url: Instagram URL
         
     Returns:
         Tuple of (content, title)
+        
+    Raises:
+        ValueError: If no meta tag data is found
+    """
+    try:
+        # Fetch HTML using existing utility
+        html = fetch_html(url)
+        soup = BeautifulSoup(html, 'lxml')
+        
+        # Try meta tags in fallback order
+        content = None
+        title = "Instagram Post"
+        
+        # 1. Try <meta name="description">
+        meta_desc = soup.find('meta', attrs={'name': 'description'})
+        if meta_desc and meta_desc.get('content', '').strip():
+            content = meta_desc['content'].strip()
+            title = content[:100] + '...' if len(content) > 100 else content
+            return content, title
+        
+        # 2. Try <meta property="og:title">
+        og_title = soup.find('meta', property='og:title')
+        if og_title and og_title.get('content', '').strip():
+            content = og_title['content'].strip()
+            title = content
+            return content, title
+        
+        # 3. Try <meta property="og:description">
+        og_desc = soup.find('meta', property='og:description')
+        if og_desc and og_desc.get('content', '').strip():
+            content = og_desc['content'].strip()
+            title = content[:100] + '...' if len(content) > 100 else content
+            return content, title
+        
+        # No meta tags found
+        raise ValueError("No content found in HTML meta tags")
+        
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to fetch Instagram HTML: {str(e)}")
+    except Exception as e:
+        raise Exception(f"HTML extraction failed: {str(e)}")
+
+
+def extract_instagram_with_instaloader(url: str) -> tuple[str, str]:
+    """
+    Extract Instagram content using instaloader (FALLBACK METHOD).
+    
+    This method requires authentication and may fail with 401 errors
+    from cloud/datacenter IPs. Used as fallback when yt-dlp fails.
+    
+    Args:
+        url: Instagram URL
+        
+    Returns:
+        Tuple of (content, title)
+        
+    Notes:
+        - Uses authenticated access if INSTAGRAM_USERNAME/PASSWORD are set
+        - Falls back to anonymous access if authentication fails
+        - Anonymous access may fail with 401 in cloud environments
     """
     try:
         import instaloader
@@ -90,19 +224,23 @@ def extract_text_from_instagram(url: str) -> tuple[str, str]:
     # Get shortcode from URL
     shortcode = extract_instagram_shortcode(url)
     
-    # Create instaloader instance
-    loader = instaloader.Instaloader()
-    
-    # Disable download of media files
-    loader.download_pictures = False
-    loader.download_videos = False
-    loader.download_video_thumbnails = False
-    loader.download_geotags = False
-    loader.download_comments = False
-    loader.save_metadata = False
+    # Get authenticated or anonymous loader
+    loader, authenticated = get_authenticated_instagram_loader()
     
     # Get post
-    post = instaloader.Post.from_shortcode(loader.context, shortcode)
+    try:
+        post = instaloader.Post.from_shortcode(loader.context, shortcode)
+    except instaloader.exceptions.LoginRequiredException:
+        if authenticated:
+            # Should not happen if we logged in successfully
+            raise ValueError("Instagram login required but authentication failed")
+        else:
+            raise ValueError(
+                "Instagram requires authentication to access this content. "
+                "Please set INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD environment variables."
+            )
+    except instaloader.exceptions.QueryReturnedNotFoundException:
+        raise ValueError(f"Instagram post not found: {url}")
     
     # Extract text content
     text_parts = []
@@ -130,6 +268,55 @@ def extract_text_from_instagram(url: str) -> tuple[str, str]:
     # Combine all text
     content = '\n\n'.join(text_parts) if text_parts else "No text content found"
     return content, title
+
+
+def extract_text_from_instagram(url: str) -> tuple[str, str]:
+    """
+    Extract text from Instagram post/reel using multiple extraction methods.
+    
+    Strategy (tries in order):
+    1. HTML meta tags (PRIMARY) - Simple, fast, no external API dependencies
+    2. instaloader (FALLBACK) - Requires authentication, may fail on cloud IPs
+    
+    Args:
+        url: Instagram URL
+        
+    Returns:
+        Tuple of (content, title)
+        
+    Raises:
+        ValueError: If all extraction methods fail, with detailed error info
+    """
+    errors = []
+    
+    # PRIMARY: Try HTML meta tags first (simple and fast)
+    try:
+        print(f"Attempting Instagram extraction with HTML meta tags (primary method)...")
+        return extract_instagram_with_html(url)
+    except Exception as e:
+        error_msg = str(e)
+        errors.append(f"HTML meta tags: {error_msg}")
+        print(f"HTML extraction failed: {error_msg}")
+    
+    # FALLBACK: Try instaloader with authentication
+    try:
+        print(f"Attempting Instagram extraction with instaloader (fallback method)...")
+        return extract_instagram_with_instaloader(url)
+    except Exception as e:
+        error_msg = str(e)
+        errors.append(f"instaloader: {error_msg}")
+        print(f"instaloader extraction failed: {error_msg}")
+    
+    # Both methods failed - provide comprehensive error
+    error_details = "\n".join(f"  • {err}" for err in errors)
+    raise ValueError(
+        f"Failed to extract Instagram content using all available methods:\n{error_details}\n\n"
+        f"Possible solutions:\n"
+        f"  1. Verify the post is public and the URL is correct\n"
+        f"  2. Set INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD environment variables for authenticated access\n"
+        f"  3. If on cloud/datacenter IP, Instagram may be blocking requests (try residential proxy)\n"
+        f"  4. Check if the Instagram post has meta tags in its HTML"
+    )
 
 
 def extract_text_from_youtube(url: str) -> tuple[str, str]:
@@ -444,8 +631,17 @@ def _extract_content(url: str) -> SimpleExtractionResult:
         enhanced_error = error_msg
         
         # Add helpful context for common platform-specific errors
-        if is_instagram_url(url) and ('403' in error_msg or 'Forbidden' in error_msg or 'metadata failed' in error_msg):
-            enhanced_error += " (Instagram may be rate limiting or blocking access. Content may be private, restricted, or require authentication)"
+        if is_instagram_url(url) and ('403' in error_msg or 'Forbidden' in error_msg or 'metadata failed' in error_msg or '401' in error_msg):
+            enhanced_error += (
+                "\n\nInstagram extraction failed with authentication error. This tool tried:\n"
+                "  1. yt-dlp extraction (primary method) - failed\n"
+                "  2. instaloader with authentication (fallback) - failed\n\n"
+                "Solutions:\n"
+                "  • Verify the post is public and the URL is correct\n"
+                "  • Set INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD environment variables\n"
+                "  • If on cloud/datacenter IP, consider using a residential proxy\n"
+                "  • Update yt-dlp: pip install -U yt-dlp"
+            )
         elif is_tiktok_url(url) and ('blocked' in error_msg.lower() or 'ip address' in error_msg.lower()):
             enhanced_error += " (TikTok is blocking this request. Content may be geo-restricted or blocked from your IP)"
         
