@@ -1,27 +1,24 @@
 /**
  * Supabase Chat History Service
  * 
- * This module provides functions for managing chat threads and messages in Supabase.
+ * This module provides functions for managing chat threads in Supabase.
  * All operations respect Row Level Security (RLS) policies - users can only
- * access their own chat threads and messages.
+ * access their own chat threads.
+ * 
+ * IMPORTANT MIGRATION NOTE (Feb 2026):
+ * - Message persistence is now handled by LangGraph's PostgreSQL checkpointer
+ * - The agent automatically stores messages in checkpoint tables
+ * - Message-related functions below are DEPRECATED and kept for reference only
+ * - Only thread management functions are actively used
  * 
  * Database Tables:
- * - chat_threads: Groups messages into conversations
- *   - id: UUID (primary key)
- *   - user_id: UUID (foreign key to auth.users)
- *   - title: TEXT (auto-generated from first message)
- *   - last_message_at: TIMESTAMPTZ
- *   - created_at: TIMESTAMPTZ
- *   - updated_at: TIMESTAMPTZ
+ * - chat_threads: Thread metadata (title, timestamps) - ACTIVE
+ * - chat_messages: Individual messages - DEPRECATED (use checkpoint tables instead)
  * 
- * - chat_messages: Individual messages within threads
- *   - id: UUID (primary key)
- *   - thread_id: UUID (foreign key to chat_threads)
- *   - user_id: UUID (foreign key to auth.users)
- *   - role: TEXT ('user', 'assistant', 'system')
- *   - content: TEXT
- *   - metadata: JSONB (optional extra data)
- *   - created_at: TIMESTAMPTZ
+ * New Tables (LangGraph Auto-Created):
+ * - checkpoints: Agent state snapshots (includes messages)
+ * - checkpoint_writes: Pending writes queue
+ * - checkpoint_migrations: Schema version tracking
  */
 
 import { supabase } from "@/lib/supabase/client";
@@ -31,6 +28,10 @@ import {
   CreateThreadInput, 
   CreateMessageInput 
 } from "@/lib/types";
+
+// =============================================================================
+// THREAD MANAGEMENT (ACTIVE - STILL IN USE)
+// =============================================================================
 
 /**
  * Create a new chat thread
@@ -213,22 +214,24 @@ export async function updateThreadTitle(threadId: string, title: string): Promis
   return data;
 }
 
+// =============================================================================
+// MESSAGE OPERATIONS (DEPRECATED - USE LANGGRAPH CHECKPOINTS)
+// =============================================================================
+
 /**
+ * @deprecated Messages are now persisted automatically by LangGraph checkpointer.
+ * This function is kept for backward compatibility but should not be used.
+ * 
  * Get all messages for a thread
  * 
- * @param threadId - UUID of the thread
- * @returns Promise<ChatMessage[]> - Array of messages sorted chronologically
- * @throws Error if fetch fails or user is not authenticated
- * 
- * @example
- * ```typescript
- * const messages = await getThreadMessages("123e4567-e89b-12d3-a456-426614174000");
- * messages.forEach(msg => {
- *   console.log(`${msg.role}: ${msg.content}`);
- * });
- * ```
+ * NOTE: For new threads, messages are stored in LangGraph checkpoint tables.
+ * Use CopilotKit's built-in message loading instead.
  */
 export async function getThreadMessages(threadId: string): Promise<ChatMessage[]> {
+  console.warn(
+    "getThreadMessages is deprecated. Messages are now in LangGraph checkpoint tables."
+  );
+  
   // Check if user is authenticated
   const { data: { session }, error: authError } = await supabase.auth.getSession();
   if (authError || !session?.user) {
@@ -251,23 +254,16 @@ export async function getThreadMessages(threadId: string): Promise<ChatMessage[]
 }
 
 /**
+ * @deprecated Messages are now persisted automatically by LangGraph checkpointer.
+ * This function is kept for backward compatibility but should not be used.
+ * 
  * Save a message to a thread
- * 
- * @param input - Message data to save
- * @returns Promise<ChatMessage> - The created message
- * @throws Error if save fails or user is not authenticated
- * 
- * @example
- * ```typescript
- * const message = await saveMessage({
- *   thread_id: "123e4567-e89b-12d3-a456-426614174000",
- *   role: "user",
- *   content: "How do I make carbonara?",
- *   metadata: { timestamp: Date.now() }
- * });
- * ```
  */
 export async function saveMessage(input: CreateMessageInput): Promise<ChatMessage> {
+  console.warn(
+    "saveMessage is deprecated. Messages are now persisted by LangGraph checkpointer."
+  );
+  
   // Check if user is authenticated
   const { data: { session }, error: authError } = await supabase.auth.getSession();
   if (authError || !session?.user) {
@@ -298,18 +294,16 @@ export async function saveMessage(input: CreateMessageInput): Promise<ChatMessag
 }
 
 /**
+ * @deprecated Messages are now persisted automatically by LangGraph checkpointer.
+ * This function is kept for backward compatibility but should not be used.
+ * 
  * Delete a specific message
- * 
- * @param messageId - UUID of the message to delete
- * @returns Promise<void>
- * @throws Error if delete fails, user is not authenticated, or message not found
- * 
- * @example
- * ```typescript
- * await deleteMessage("123e4567-e89b-12d3-a456-426614174000");
- * ```
  */
 export async function deleteMessage(messageId: string): Promise<void> {
+  console.warn(
+    "deleteMessage is deprecated. Messages are now in LangGraph checkpoint tables."
+  );
+  
   // Check if user is authenticated
   const { data: { session }, error: authError } = await supabase.auth.getSession();
   if (authError || !session?.user) {
@@ -364,4 +358,77 @@ export async function getMostRecentThread(): Promise<ChatThread | null> {
   }
 
   return data;
+}
+
+/**
+ * Check if a thread has any user messages by querying the checkpoint system
+ * 
+ * @param threadId - UUID of the thread to check
+ * @returns Promise<boolean> - True if thread has user messages, false otherwise
+ * @throws Error if check fails or user is not authenticated
+ * 
+ * @example
+ * ```typescript
+ * const hasMessages = await threadHasUserMessages(threadId);
+ * if (!hasMessages) {
+ *   console.log("Thread is empty, can reuse");
+ * }
+ * ```
+ */
+export async function threadHasUserMessages(threadId: string): Promise<boolean> {
+  // Check if user is authenticated
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  if (authError || !session?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  try {
+    // Query the checkpoints table to check for user messages
+    // The checkpoint data contains the agent state with messages
+    const { data, error } = await supabase
+      .from('checkpoints')
+      .select('checkpoint')
+      .eq('thread_id', threadId)
+      .order('checkpoint_id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error checking thread messages:", error);
+      // If we can't check, assume it has messages (safer default)
+      return true;
+    }
+
+    // If no checkpoint exists, thread is empty
+    if (!data) {
+      return false;
+    }
+
+    // Parse the checkpoint data to check for user messages
+    const checkpoint = data.checkpoint;
+    if (!checkpoint || typeof checkpoint !== 'object') {
+      return false;
+    }
+
+    // The checkpoint contains channel data with messages
+    // CopilotKit stores messages in the 'messages' channel
+    const channelData = (checkpoint as any).channel_values;
+    if (!channelData || !channelData.messages) {
+      return false;
+    }
+
+    const messages = channelData.messages;
+    if (!Array.isArray(messages)) {
+      return false;
+    }
+
+    // Check if any message has role "user"
+    return messages.some((msg: any) => {
+      return msg.type === 'human' || msg.role === 'user';
+    });
+  } catch (err) {
+    console.error("Error in threadHasUserMessages:", err);
+    // If we can't determine, assume it has messages (safer default)
+    return true;
+  }
 }

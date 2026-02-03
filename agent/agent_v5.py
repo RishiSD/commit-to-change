@@ -10,7 +10,6 @@ from typing import Optional, List
 
 from langchain.chat_models import init_chat_model
 from langchain.agents import create_agent
-from langgraph.checkpoint.memory import MemorySaver
 from copilotkit import CopilotKitState
 from opik.integrations.langchain import OpikTracer, track_langgraph
 
@@ -160,32 +159,53 @@ tools = [
 # AGENT CREATION
 # =============================================================================
 
-checkpointer = MemorySaver()
-
-agent = create_agent(
-    model=model,
-    tools=tools,
-    state_schema=AgentState,
-    system_prompt=SYSTEM_PROMPT,
-    checkpointer=checkpointer,
-)
+def create_agent_graph(checkpointer):
+    """
+    Create the agent graph with the provided checkpointer.
+    
+    Args:
+        checkpointer: LangGraph checkpointer (e.g., AsyncPostgresSaver)
+        
+    Returns:
+        Compiled agent graph with persistence
+    """
+    agent = create_agent(
+        model=model,
+        tools=tools,
+        state_schema=AgentState,
+        system_prompt=SYSTEM_PROMPT,
+        checkpointer=checkpointer,
+    )
+    
+    return agent
 
 
 # =============================================================================
-# OPIK TRACING
+# OPIK TRACING FACTORY
 # =============================================================================
 
-opik_tracer = OpikTracer(
-    tags=["aura-chef", "recipe-extraction", "agent-v5", "unified-tool"],
-    project_name="playground",
-    graph=agent.get_graph(xray=True)
-)
-
-agent_with_opik = track_langgraph(agent, opik_tracer)
+def create_agent_with_opik(agent):
+    """
+    Wrap the agent with Opik tracing.
+    
+    Args:
+        agent: The compiled LangGraph agent
+        
+    Returns:
+        Agent wrapped with Opik observability
+    """
+    opik_tracer = OpikTracer(
+        tags=["aura-chef", "recipe-extraction", "agent-v5", "unified-tool"],
+        project_name="playground",
+        graph=agent.get_graph(xray=True)
+    )
+    
+    tracked_agent = track_langgraph(agent, opik_tracer)
+    return tracked_agent
 
 
 # =============================================================================
 # EXPORTS
 # =============================================================================
 
-__all__ = ["agent", "agent_with_opik", "AgentState", "get_model"]
+__all__ = ["create_agent_graph", "create_agent_with_opik", "AgentState", "get_model"]

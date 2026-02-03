@@ -21,6 +21,7 @@ import {
   createThread,
   deleteThread as deleteThreadDB,
   getThreadMessages,
+  threadHasUserMessages,
 } from "@/lib/supabase/chatHistory";
 import { toast } from "react-hot-toast";
 
@@ -51,6 +52,7 @@ export function useThreadManager(): UseThreadManager {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThread, setActiveThread] = useState<ChatThread | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasCheckedThread, setHasCheckedThread] = useState(false);
   
   const { setThreadId } = useCopilotContext();
 
@@ -85,6 +87,9 @@ export function useThreadManager(): UseThreadManager {
       // Set CopilotKit threadId to switch conversation
       setThreadId(newThread.id);
       
+      // Mark as checked since we just created a new thread
+      setHasCheckedThread(true);
+      
       toast.success("New conversation started");
     } catch (error) {
       console.error("Error creating thread:", error);
@@ -109,6 +114,9 @@ export function useThreadManager(): UseThreadManager {
       
       // Switch CopilotKit to this thread (this will load messages automatically)
       setThreadId(threadId);
+      
+      // Reset check flag to allow checking the newly loaded thread
+      setHasCheckedThread(false);
       
       console.log(`Switched to thread: ${thread.title}`);
     } catch (error) {
@@ -152,12 +160,52 @@ export function useThreadManager(): UseThreadManager {
     loadThreads();
   }, [loadThreads]);
 
-  // Auto-create a thread if none exist
+  // Smart thread creation: Create new thread if most recent thread has messages, reuse if empty
   useEffect(() => {
-    if (!isLoading && threads.length === 0 && !activeThread) {
+    // Skip if still loading or already checked
+    if (isLoading || hasCheckedThread) return;
+    
+    // Case 1: No threads exist → Create first thread
+    if (threads.length === 0 && !activeThread) {
+      console.log("No threads found, creating first thread");
       createNewThread();
+      return;
     }
-  }, [isLoading, threads.length, activeThread, createNewThread]);
+    
+    // Case 2: Threads exist but none active → Load most recent thread
+    if (threads.length > 0 && !activeThread) {
+      console.log("Loading most recent thread");
+      switchThread(threads[0].id);
+      return;
+    }
+    
+    // Case 3: Active thread exists → Check if it has user messages
+    if (activeThread) {
+      // Use async check for user messages
+      const checkAndHandleThread = async () => {
+        try {
+          const hasMessages = await threadHasUserMessages(activeThread.id);
+          
+          if (hasMessages) {
+            // Thread has messages → Create new thread for fresh start
+            console.log("Active thread has user messages, creating new thread");
+            await createNewThread();
+          } else {
+            // Thread is empty → Reuse it (do nothing)
+            console.log("Active thread is empty, reusing it");
+            setHasCheckedThread(true);
+          }
+        } catch (error) {
+          console.error("Error checking thread messages:", error);
+          // On error, assume thread has messages and create new one (safer default)
+          console.log("Error checking messages, creating new thread as fallback");
+          await createNewThread();
+        }
+      };
+      
+      checkAndHandleThread();
+    }
+  }, [isLoading, threads, activeThread, hasCheckedThread, createNewThread, switchThread]);
 
   return {
     threads,

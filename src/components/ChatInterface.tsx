@@ -8,14 +8,12 @@ import {
   CatchAllActionRenderProps,
   useCoAgent,
   useCopilotAction,
-  useCopilotContext,
   useFrontendTool,
   useHumanInTheLoop,
   useRenderToolCall,
 } from "@copilotkit/react-core";
 import { CopilotKitCSSProperties, CopilotChat } from "@copilotkit/react-ui";
-import { useEffect, useCallback } from "react";
-import { useMessagePersistence } from "@/hooks/useMessagePersistence";
+import { useEffect } from "react";
 
 const THEME_COLOR = "#e86d4f";
 
@@ -66,17 +64,8 @@ function YourMainContent() {
     name: "sample_agent",
   });
 
-  // Get active thread ID from CopilotKit context
-  const { threadId } = useCopilotContext();
-  
-  // Message persistence hook
-  const { onMessage } = useMessagePersistence(threadId || null);
-
-  // Handle message submission to save to database
-  const handleSubmitMessage = useCallback(async (content: string) => {
-    // Save user message to database
-    await onMessage("user", content);
-  }, [onMessage]);
+  // Note: threadId is managed by CopilotKit and used internally for persistence
+  // Messages are now persisted automatically by the agent's PostgreSQL checkpointer
 
   // Hide tool call result JSON messages from chat - only show custom UI from useRenderToolCall
   useEffect(() => {
@@ -368,7 +357,6 @@ function YourMainContent() {
                   title: 'Aura Chef Assistant',
                   initial: "👋 Hi there! I'm your culinary AI assistant. How can I help you today?",
                 }}
-                onSubmitMessage={handleSubmitMessage}
                 suggestions={[
                 {
                   title: 'Generative UI',

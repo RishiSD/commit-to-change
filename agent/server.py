@@ -16,9 +16,10 @@ import uvicorn
 
 from copilotkit import LangGraphAGUIAgent
 from ag_ui_langgraph import add_langgraph_fastapi_endpoint
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 # Import all agent versions
-from agent_v5 import agent_with_opik as agent_v5
+from agent_v5 import create_agent_graph, create_agent_with_opik
 
 # Import Supabase authentication utilities
 from auth_utils import get_user_context_for_copilotkit
@@ -26,11 +27,12 @@ from auth_utils import get_user_context_for_copilotkit
 # Load environment variables
 load_dotenv()
 
-agent_with_opik = agent_v5
-
-print(f"✓ Using Agent V5")
+print(f"✓ Using Agent V5 with PostgreSQL persistence")
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
+# Global variable to store the agent (initialized in lifespan)
+agent_graph = None
 
 
 def validate_environment():
@@ -59,7 +61,10 @@ def validate_environment():
 async def lifespan(app: FastAPI):
     """
     Lifespan context manager for startup and shutdown events.
+    Initializes PostgreSQL checkpoint saver for message persistence.
     """
+    global agent_graph
+    
     # Startup: Validate environment
     print("🚀 Starting FastAPI server for LangGraph agent...")
     try:
@@ -68,8 +73,45 @@ async def lifespan(app: FastAPI):
         print(f"\n❌ Environment validation failed:\n{e}\n")
         raise
     
-    print("✓ Agent graph compiled and ready")
-    yield
+    # Get DATABASE_URL from environment
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError(
+            "Missing DATABASE_URL environment variable.\n"
+            "Please set it in your agent/.env file:\n"
+            "DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres\n"
+            "Get your database password from Supabase Dashboard > Settings > Database"
+        )
+    
+    print(f"✓ Connecting to PostgreSQL database...")
+    
+    # Initialize AsyncPostgresSaver for checkpoint persistence
+    async with AsyncPostgresSaver.from_conn_string(database_url) as checkpointer:
+        # Setup database schema on first run (creates checkpoint tables)
+        print(f"✓ Setting up checkpoint tables...")
+        await checkpointer.setup()
+        
+        # Create agent graph with checkpointer
+        print(f"✓ Compiling agent graph with persistence...")
+        base_graph = create_agent_graph(checkpointer)
+        
+        # Wrap with Opik tracing
+        agent_graph = create_agent_with_opik(base_graph)
+
+        # Configure the LangGraph agent with CopilotKit now that graph is ready
+        add_langgraph_fastapi_endpoint(
+            app=app,
+            agent=LangGraphAGUIAgent(
+                name="sample_agent",
+                description="A specialized recipe extraction assistant that extracts and formats recipes from URLs.",
+                graph=agent_graph,
+                config=agent_graph.config,
+            ),
+            path="/",
+        )
+
+        print("✓ Agent graph compiled with PostgreSQL persistence")
+        yield
     
     # Shutdown
     print("👋 Shutting down FastAPI server...")
@@ -122,18 +164,6 @@ async def add_auth_context_middleware(request: Request, call_next):
     
     response = await call_next(request)
     return response
-
-# Configure the LangGraph agent with CopilotKit
-add_langgraph_fastapi_endpoint(
-    app=app,
-    agent=LangGraphAGUIAgent(
-        name="sample_agent",
-        description="A specialized recipe extraction assistant that extracts and formats recipes from URLs.",
-        graph=agent_with_opik,
-        config=agent_with_opik.config,
-    ),
-    path="/",
-)
 
 
 @app.get("/health")
