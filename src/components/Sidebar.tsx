@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-// import { UserMenu } from "@/components/auth/UserMenu";
 import { User } from "@supabase/supabase-js";
+import { ChatThread } from "@/lib/types";
 
 interface SidebarProps {
   user: User | null;
@@ -13,10 +13,17 @@ interface SidebarProps {
   // Controlled collapsed state from parent (layout)
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
+  // Chat history props
+  threads: ChatThread[];
+  activeThreadId: string | null;
+  onNewThread: () => void;
+  onSelectThread: (threadId: string) => void;
+  onDeleteThread: (threadId: string) => void;
 }
 
-export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }: SidebarProps) {
+export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed, threads, activeThreadId, onNewThread, onSelectThread, onDeleteThread }: SidebarProps) {
   const pathname = usePathname();
+  const [expandedSection, setExpandedSection] = useState<"nav" | "history">("nav");
 
   const navItems = [
     {
@@ -140,37 +147,128 @@ export function Sidebar({ user, onSignOut, themeColor, collapsed, setCollapsed }
 
           {/* Navigation Items */}
             <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
+            {/* Section: Navigation */}
+            <div className="mb-4">
+              {!collapsed && (
+                <div className="flex items-center justify-between mb-2 px-3">
+                  <span className="text-xs font-semibold text-[var(--neutral-500)] uppercase tracking-wide">
+                    Navigation
+                  </span>
+                </div>
+              )}
+              {navItems.map((item) => {
+                const isActive = pathname === item.href;
 
-              // When a nav item is clicked: on mobile close the drawer; on desktop do not change collapse state
-              const handleNavClick = () => {
-                if (typeof window === "undefined") return;
-                if (window.innerWidth < 1024) {
-                  // On small screens, close the drawer after navigation
-                  setCollapsed(true);
-                }
-              };
+                // When a nav item is clicked: on mobile close the drawer; on desktop do not change collapse state
+                const handleNavClick = () => {
+                  if (typeof window === "undefined") return;
+                  if (window.innerWidth < 1024) {
+                    // On small screens, close the drawer after navigation
+                    setCollapsed(true);
+                  }
+                };
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={handleNavClick}
-                  className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ${
-                    isActive
-                      ? "bg-[var(--primary-50)] text-[var(--primary-600)] font-medium"
-                      : "text-[var(--neutral-700)] hover:bg-[var(--neutral-100)] hover:text-[var(--primary-600)]"
-                  }`}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  {!collapsed && (
-                    <span className="text-sm">{item.label}</span>
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={handleNavClick}
+                    className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ${
+                      isActive
+                        ? "bg-[var(--primary-50)] text-[var(--primary-600)] font-medium"
+                        : "text-[var(--neutral-700)] hover:bg-[var(--neutral-100)] hover:text-[var(--primary-600)]"
+                    }`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    {!collapsed && (
+                      <span className="text-sm">{item.label}</span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Section: Chat History */}
+            {pathname === "/" && (
+              <div className="border-t pt-4" style={{ borderColor: 'var(--neutral-200)' }}>
+                {!collapsed && (
+                  <div className="flex items-center justify-between mb-2 px-3">
+                    <span className="text-xs font-semibold text-[var(--neutral-500)] uppercase tracking-wide">
+                      Chat History
+                    </span>
+                    <button
+                      onClick={onNewThread}
+                      className="p-1 rounded hover:bg-[var(--neutral-100)] transition-colors"
+                      title="New Chat"
+                      aria-label="Start new conversation"
+                    >
+                      <svg className="w-4 h-4 text-[var(--neutral-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {/* Thread list */}
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {collapsed ? (
+                    // Collapsed view: show chat icon only
+                    <button
+                      onClick={onNewThread}
+                      className="w-full flex items-center justify-center p-2 rounded-md hover:bg-[var(--neutral-100)] transition-colors"
+                      title="New Chat"
+                    >
+                      <svg className="w-5 h-5 text-[var(--neutral-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                    </button>
+                  ) : (
+                    // Expanded view: show thread list
+                    <>
+                      {threads.length === 0 ? (
+                        <div className="px-3 py-6 text-center text-sm text-[var(--neutral-500)]">
+                          No conversations yet
+                        </div>
+                      ) : (
+                        threads.slice(0, 10).map((thread) => {
+                          const isActive = thread.id === activeThreadId;
+                          return (
+                            <div
+                              key={thread.id}
+                              className={`group relative flex items-center space-x-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                                isActive
+                                  ? "bg-[var(--primary-50)] text-[var(--primary-700)]"
+                                  : "text-[var(--neutral-700)] hover:bg-[var(--neutral-100)]"
+                              }`}
+                              onClick={() => onSelectThread(thread.id)}
+                            >
+                              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                              </svg>
+                              <span className="flex-1 text-xs truncate">{thread.title}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteThread(thread.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 transition-opacity"
+                                title="Delete conversation"
+                                aria-label="Delete conversation"
+                              >
+                                <svg className="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        })
+                      )}
+                    </>
                   )}
-                </Link>
-              );
-            })}
+                </div>
+              </div>
+            )}
           </nav>
 
            {/* Logout button (visible for authenticated user) */}

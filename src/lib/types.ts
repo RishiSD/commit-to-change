@@ -30,3 +30,36 @@ export type AgentState = {
   recipe_json?: RecipeJSON;
   extracted_recipe_name?: string;
 };
+
+// Chat History Types
+export type MessageRole = "user" | "assistant" | "system";
+
+export interface ChatMessage {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  role: MessageRole;
+  content: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface ChatThread {
+  id: string;
+  user_id: string;
+  title: string;
+  last_message_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateMessageInput {
+  thread_id: string;
+  role: MessageRole;
+  content: string;
+  metadata?: Record<string, any>;
+}
+
+export interface CreateThreadInput {
+  title?: string;
+}

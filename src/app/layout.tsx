@@ -4,10 +4,12 @@ import { CopilotKit } from "@copilotkit/react-core";
 import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useThreadManager } from "@/hooks/useThreadManager";
 import { Sidebar } from "@/components/Sidebar";
 import { useState, useLayoutEffect, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import { Inter } from "next/font/google";
+import type { Session, User } from "@supabase/supabase-js";
 
 // Configure Inter font
 const inter = Inter({
@@ -17,6 +19,60 @@ const inter = Inter({
   display: 'swap',
 });
 
+/**
+ * Inner layout component that uses CopilotKit context
+ * Must be rendered inside <CopilotKit> provider
+ */
+function LayoutContent({
+  children,
+  user,
+  session,
+  signOut,
+  getAccessToken,
+}: {
+  children: React.ReactNode;
+  user: User | null;
+  session: Session | null;
+  signOut: () => Promise<void>;
+  getAccessToken: () => string | null;
+}) {
+  const { threads, activeThread, createNewThread, switchThread, deleteThread } = useThreadManager();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const themeColor = "#e86d4f"; // Terracotta theme color for Aura Chef
+
+  // Initial collapse state: auto-collapse on small screens
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.innerWidth < 1024) setSidebarCollapsed(true);
+  }, []);
+
+  return (
+    <div className="flex w-full h-screen overflow-x-hidden">
+      {/* Sidebar (pushes content on desktop, overlays on mobile) */}
+      {session && user && (
+        <Sidebar 
+          user={user} 
+          onSignOut={signOut} 
+          themeColor={themeColor} 
+          collapsed={sidebarCollapsed} 
+          setCollapsed={setSidebarCollapsed}
+          threads={threads}
+          activeThreadId={activeThread?.id || null}
+          onNewThread={createNewThread}
+          onSelectThread={switchThread}
+          onDeleteThread={deleteThread}
+        />
+      )}
+      
+      {/* Main content area (flex-grow). On large screens add left padding that equals the
+          sidebar width so the fixed sidebar doesn't overlap or push content offscreen. */}
+      <main className={`flex-grow min-w-0 h-full overflow-y-auto overflow-x-hidden transition-all duration-300 ${session ? (sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64') : ''}`}>
+        {children}
+      </main>
+    </div>
+  );
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -24,19 +80,10 @@ export default function RootLayout({
 }>) {
   const { user, session, isLoading, signOut, getAccessToken } = useSupabaseAuth();
   const [mounted, setMounted] = useState(false);
-  // Manage sidebar collapsed state at layout level so main content can shift width
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const themeColor = "#e86d4f"; // Terracotta theme color for Aura Chef
 
   // Handle client-side mounting - hydration detection pattern
   useLayoutEffect(() => {
     setMounted(true);
-  }, []);
-
-  // Initial collapse state: auto-collapse on small screens
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.innerWidth < 1024) setSidebarCollapsed(true);
   }, []);
 
   // Show loading state while checking authentication
@@ -62,18 +109,14 @@ export default function RootLayout({
           // Pass Supabase access token to CopilotKit
           properties={session ? { authorization: `Bearer ${getAccessToken()}` } : undefined}
         >
-         {/* Push-menu layout for sidebar and main */}
-         <div className="flex w-full h-screen overflow-x-hidden">
-           {/* Sidebar (pushes content on desktop, overlays on mobile) */}
-            {session && user && (
-              <Sidebar user={user} onSignOut={signOut} themeColor={themeColor} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
-            )}
-            {/* Main content area (flex-grow). On large screens add left padding that equals the
-                sidebar width so the fixed sidebar doesn't overlap or push content offscreen. */}
-            <main className={`flex-grow min-w-0 h-full overflow-y-auto overflow-x-hidden transition-all duration-300 ${session ? (sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64') : ''}`}>
-              {children}
-            </main>
-         </div>
+          <LayoutContent
+            user={user}
+            session={session}
+            signOut={signOut}
+            getAccessToken={getAccessToken}
+          >
+            {children}
+          </LayoutContent>
            
           {/* Toast notifications - Updated to terracotta theme */}
           <Toaster 
