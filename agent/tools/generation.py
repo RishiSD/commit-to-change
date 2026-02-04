@@ -6,6 +6,7 @@ from langgraph.prebuilt import InjectedState
 from langchain_core.messages import SystemMessage
 
 from .models import GeneratedRecipe, RecipeDataForLLM, RecipeJSON
+from utils.model import get_model
 
 
 @tool
@@ -91,20 +92,7 @@ def generate_recipe_from_knowledge(
     directly from training knowledge as structured JSON data.
     """
     try:
-        # Import model dynamically
-        from langchain.chat_models import init_chat_model
-        import os
-        
-        openrouter_key = os.getenv("OPEN_ROUTER_API_KEY")
-        if openrouter_key:
-            model = init_chat_model(
-                model="openai/gpt-oss-120b",
-                model_provider="openai",
-                api_key=openrouter_key,
-                base_url="https://api.groq.com/openai/v1"
-            )
-        else:
-            model = init_chat_model("google_genai:gemini-2.5-flash-lite")
+        model = get_model()
         
         # Use structured output to generate RecipeDataForLLM
         structured_model = model.with_structured_output(RecipeDataForLLM)

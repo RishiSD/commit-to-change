@@ -50,42 +50,114 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           {/* Section Header */}
           <div className="text-center mb-16 animate-fade-in">
             <h2 className="text-3xl sm:text-4xl font-bold text-[var(--neutral-900)] mb-4">
-              Powerful AI Features
+              What Makes Aura Chef Special
             </h2>
             <p className="text-[var(--neutral-600)] text-lg max-w-2xl mx-auto">
-              Everything you need to elevate your cooking experience
+              Extract recipes from any source, generate custom dishes, and get intelligent cooking assistance
             </p>
           </div>
           
           {/* Features Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in-up">
             <FeatureCard
-              icon="🤖"
-              title="AI-Powered Recipes"
-              description="Get personalized recipe recommendations based on your preferences, dietary restrictions, and available ingredients."
+              icon="🔗"
+              title="Recipe Extraction from Social Links"
+              description="Import recipes from popular cooking sites, Instagram, YouTube, TikTok, and more. Automatically extracts ingredients, instructions, and even follows embedded links to find complete recipes."
               themeColor={THEME_COLOR}
             />
             
             <FeatureCard
-              icon="💬"
-              title="Real-time Assistance"
-              description="Chat with your AI chef assistant for instant cooking tips, substitutions, and step-by-step guidance."
+              icon="✨"
+              title="AI Recipe Generation"
+              description="Generate complete, authentic recipes from dish names or ingredients. Get accurate measurements, cooking times, difficulty levels, and helpful tips for any cuisine."
               themeColor={THEME_COLOR}
             />
             
             <FeatureCard
-              icon="📋"
-              title="Smart Meal Plans"
-              description="Generate customized meal plans for the week with automatic grocery lists and nutritional insights."
+              icon="🔄"
+              title="Intelligent Substitutions"
+              description="Chat with your AI assistant for instant ingredient swaps, dietary accommodations, and step-by-step cooking guidance tailored to your needs."
               themeColor={THEME_COLOR}
             />
             
             <FeatureCard
-              icon="🥕"
-              title="Ingredient Management"
-              description="Track your pantry, get alerts for expiring items, and discover recipes using what you have."
+              icon="📚"
+              title="Recipe Collection & Search"
+              description="Build your personal recipe library with automatic saving. Organize, search, and filter your collection by cuisine, difficulty, or ingredients. Your recipes, always accessible."
               themeColor={THEME_COLOR}
             />
+          </div>
+
+          {/* Supported Platforms Section - Enhanced */}
+          <div className="mt-20 animate-fade-in">
+            <div className="text-center mb-12">
+              <p className="text-[var(--neutral-600)] text-xs font-bold tracking-wider mb-3">
+                EXTRACT RECIPES FROM
+              </p>
+              <h3 className="text-2xl sm:text-3xl font-bold text-[var(--neutral-800)]">
+                Works With Your Favorite Sources
+              </h3>
+            </div>
+            
+            {/* Platform Categories Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              
+              {/* Social Media Platforms */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white text-xl">
+                    📱
+                  </div>
+                  <h4 className="text-lg font-bold text-[var(--neutral-800)]">Social Media</h4>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    Instagram
+                  </span>
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    TikTok
+                  </span>
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    YouTube
+                  </span>
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    Facebook
+                  </span>
+                </div>
+              </div>
+
+              {/* Recipe Websites */}
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-6 border border-orange-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center text-white text-xl">
+                    🌐
+                  </div>
+                  <h4 className="text-lg font-bold text-[var(--neutral-800)]">Recipe Websites</h4>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    AllRecipes
+                  </span>
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    NYT Cooking
+                  </span>
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    Food Network
+                  </span>
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    Bon Appétit
+                  </span>
+                  <span className="px-4 py-2 bg-white rounded-lg text-[var(--neutral-700)] font-medium text-sm shadow-sm">
+                    Serious Eats
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Text */}
+            <p className="text-center text-[var(--neutral-500)] text-sm mt-8">
+              Plus hundreds of other recipe websites and blogs worldwide
+            </p>
           </div>
         </div>
       </section>
@@ -98,7 +170,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 Ready to transform your cooking?
               </h3>
               <p className="text-[var(--neutral-600)] text-lg mb-8">
-                Join thousands of home cooks who are already creating amazing meals with AI assistance.
+                Join us for creating amazing meals with AI assistance.
               </p>
             <button
               onClick={handleOpenLogin}

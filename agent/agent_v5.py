@@ -5,10 +5,8 @@ Simplifies the workflow by combining extraction, validation, and formatting
 into a single tool call with automatic follow-up link handling.
 """
 
-import os
 from typing import Optional, List
 
-from langchain.chat_models import init_chat_model
 from langchain.agents import create_agent
 from copilotkit import CopilotKitState
 from opik.integrations.langchain import OpikTracer, track_langgraph
@@ -17,6 +15,7 @@ from opik.integrations.langchain import OpikTracer, track_langgraph
 from tools.unified_extraction import extract_and_process_recipe
 from tools.validation import extract_recipe_name
 from tools.generation import generate_recipe_from_knowledge
+from utils.model import get_model
 
 
 # =============================================================================
@@ -155,23 +154,6 @@ Remember to populate the recipe_json field with your final output!"""
 # =============================================================================
 # MODEL AND TOOLS
 # =============================================================================
-
-def get_model():
-    """Initialize the LLM model."""
-    openrouter_key = os.getenv("OPEN_ROUTER_API_KEY")
-    
-    if openrouter_key:
-        print("✓ Using OpenRouter for LLM (Agent V5)")
-        return init_chat_model(
-            model="openai/gpt-oss-120b",
-            model_provider="openai",
-            api_key=openrouter_key,
-            base_url="https://api.groq.com/openai/v1"
-        )
-    else:
-        print("✓ Using Google Gemini for LLM (Agent V5)")
-        return init_chat_model("google_genai:gemini-2.5-flash-lite")
-
 
 model = get_model()
 

@@ -6,6 +6,7 @@ from langgraph.prebuilt import InjectedState
 from langchain_core.messages import SystemMessage
 
 from .models import ValidationResult, RecipeNameExtraction
+from utils.model import get_model
 
 
 @tool
@@ -54,21 +55,7 @@ def validate_recipe_content(content: str, state: Annotated[dict, InjectedState])
     # Import model dynamically to avoid circular imports
     # In actual node usage, we'll get the model from agent_v3
     try:
-        # This is a placeholder - in nodes.py, we'll use the model from agent_v3
-        from langchain.chat_models import init_chat_model
-        import os
-        
-        # Use same model initialization logic as agent_v3
-        openrouter_key = os.getenv("OPEN_ROUTER_API_KEY")
-        if openrouter_key:
-            model = init_chat_model(
-                model="openai/gpt-oss-120b",
-                model_provider="openai",
-                api_key=openrouter_key,
-                base_url="https://api.groq.com/openai/v1"
-            )
-        else:
-            model = init_chat_model("google_genai:gemini-2.5-flash-lite")
+        model = get_model()
         
         structured_model = model.with_structured_output(ValidationResult)
         
@@ -78,7 +65,7 @@ CONTENT TO VALIDATE:
 {content[:3000]}  # Truncate to avoid token limits
 
 VALIDATION REQUIREMENTS:
-1. Check for a clear ingredients section with quantities (e.g., "2 cups flour", "1 tsp salt")
+1. Check for a clear ingredients section with or without quantities (e.g., "2 cups flour", "1 tsp salt")
 2. Check for step-by-step cooking/preparation instructions
 3. Extract the recipe name/title if present (usually at the beginning)
 4. Be STRICT - reject restaurant reviews, menus, nutrition articles, equipment guides, or incomplete content
@@ -147,20 +134,7 @@ def extract_recipe_name(text: str) -> dict:
     - Low confidence: cannot identify recipe name
     """
     try:
-        # Import model dynamically
-        from langchain.chat_models import init_chat_model
-        import os
-        
-        openrouter_key = os.getenv("OPEN_ROUTER_API_KEY")
-        if openrouter_key:
-            model = init_chat_model(
-                model="openai/gpt-oss-120b",
-                model_provider="openai",
-                api_key=openrouter_key,
-                base_url="https://api.groq.com/openai/v1"
-            )
-        else:
-            model = init_chat_model("google_genai:gemini-2.5-flash-lite")
+        model = get_model()
         
         structured_model = model.with_structured_output(RecipeNameExtraction)
         

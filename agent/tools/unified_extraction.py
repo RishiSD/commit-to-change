@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 
 from .models import UnifiedRecipeResult, ValidateAndFormatOutput
 from utils.retry import with_retry
+from utils.model import get_model
 
 
 # =============================================================================
@@ -520,9 +521,8 @@ def extract_text_from_html(html: str) -> str:
     soup = BeautifulSoup(html, 'lxml')
     
     # Remove script, style, and other non-visible elements
-    for element in soup(['script', 'style', 'noscript', 'header', 'footer', 'nav']):
+    for element in soup(['script', 'style', 'noscript']):
         element.decompose()
-    
     # Get all text
     text = soup.get_text(separator=' ', strip=True)
     
@@ -679,20 +679,7 @@ def _validate_and_format_combined(
         ValidateAndFormatOutput with validation + JSON formatting results
     """
     try:
-        from langchain.chat_models import init_chat_model
-        import os
-        
-        # Initialize model (same logic as other tools)
-        openrouter_key = os.getenv("OPEN_ROUTER_API_KEY")
-        if openrouter_key:
-            model = init_chat_model(
-                model="openai/gpt-oss-120b",
-                model_provider="openai",
-                api_key=openrouter_key,
-                base_url="https://api.groq.com/openai/v1"
-            )
-        else:
-            model = init_chat_model("google_genai:gemini-2.5-flash-lite")
+        model = get_model()
         
         structured_model = model.with_structured_output(ValidateAndFormatOutput)
         
@@ -705,23 +692,24 @@ def _validate_and_format_combined(
 Determine if this content contains a COMPLETE, VALID recipe.
 
 A valid recipe MUST have BOTH:
-1. Ingredients list with quantities (e.g., "2 cups flour", "1 tsp salt")
+1. Ingredients list (quantities are optional - ingredients can be listed with or without measurements)
 2. Step-by-step cooking/preparation instructions
 
 BE STRICT - reject:
 - Restaurant reviews or menus
 - Nutrition articles without recipes
 - Equipment guides
-- Ingredient lists without cooking steps
-- Cooking steps without ingredient lists
-- Ingredients WITHOUT quantities (this is invalid, but continue to TASK 2B)
+- Ingredient lists without cooking steps (MISSING STEPS makes recipe invalid)
+- Cooking steps without ingredient lists (MISSING INGREDIENTS makes recipe invalid)
+
+NOTE: Ingredients WITHOUT quantities are acceptable (e.g., "flour", "salt") - only MISSING ingredients or MISSING steps make a recipe invalid.
 
 **TASK 2A: EXTRACT AS JSON (if valid recipe)**
 If valid, extract the recipe as structured JSON with these fields:
 - title: Recipe name/title
 - ingredients: Array of objects with {{name, quantity, unit}}
   * name: ingredient name (e.g., "All-purpose flour", "Garlic")
-  * quantity: numeric value OR string for ranges/descriptions (e.g., 2, 2.5, "2-3", "to taste")
+  * quantity: numeric value OR string for ranges/descriptions (e.g., 2, 2.5, "2-3", "to taste") could be empty string if no quantity provided
   * unit: measurement unit (e.g., "cups", "g", "cloves", "tbsp", "pinch")
 - steps: Array of instruction strings (ordered)
 - tags: Array of descriptive tags (e.g., ["italian", "vegetarian", "quick", "easy"])
