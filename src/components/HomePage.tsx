@@ -17,7 +17,6 @@ import { useRouter } from "next/navigation";
 import { useThreadManager } from "@/hooks/useThreadManager";
 import { ExtractRecipeModal } from "@/components/modals/ExtractRecipeModal";
 import { Navigation } from "@/components/Navigation";
-import { toast } from "react-hot-toast";
 
 const THEME_COLOR = "#e86d4f";
 
@@ -31,11 +30,12 @@ export function HomePage() {
     try {
       setIsCreatingThread(true);
       await createNewThread();
-      toast.success("Starting new conversation...");
+      // Set flag to indicate AI recipe generation flow
+      sessionStorage.setItem("recipeGenerationFlow", "true");
       router.push("/chat");
     } catch (error) {
       console.error("Error creating thread:", error);
-      toast.error("Failed to start conversation");
+      // Toast is already shown by useThreadManager
     } finally {
       setIsCreatingThread(false);
     }

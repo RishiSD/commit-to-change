@@ -24,11 +24,22 @@ const THEME_COLOR = "#e86d4f";
  * Analyzes the current agent state to provide relevant, actionable suggestions.
  * 
  * @param state - Current agent state including recipe data, errors, and processing stage
+ * @param isRecipeGeneration - Whether user came from "Generate AI Recipe" flow
  * @returns Instruction string for the AI to generate appropriate suggestions
  */
-function generateSuggestionInstructions(state: AgentState | undefined): string {
+function generateSuggestionInstructions(state: AgentState | undefined, isRecipeGeneration: boolean = false): string {
   // Handle undefined state
   if (!state) {
+    // Show recipe generation suggestions if in that flow
+    if (isRecipeGeneration) {
+      return `User wants to generate a custom AI recipe. Suggest 3-4 creative ways to start:
+- Generate by dish name (e.g., "Create a recipe for chicken tikka masala", "Make me pasta carbonara")
+- Generate by cuisine (e.g., "Suggest an Italian appetizer", "Create a Thai curry recipe")
+- Generate by ingredients (e.g., "I have chicken, tomatoes, and basil", "Recipe using salmon and asparagus")
+- Generate by dietary needs (e.g., "Vegetarian pasta recipe", "Keto-friendly dinner")
+Make suggestions specific, creative, and inspiring.`;
+    }
+    
     return `Suggest 3-4 helpful ways to get started with Aura Chef. Focus on:
 - Extracting recipes from popular sites (AllRecipes, Food Network, NYT Cooking)
 - Generating recipes by name (e.g., "chicken tikka masala", "pasta carbonara")
@@ -130,6 +141,7 @@ export function ChatInterface() {
 function YourMainContent() {
   const [initialMessage, setInitialMessage] = useState<string | null>(null);
   const [hasAutoSent, setHasAutoSent] = useState(false);
+  const [isRecipeGeneration, setIsRecipeGeneration] = useState(false);
   const appendMessageRef = useRef<((message: TextMessage) => void) | null>(null);
   
   // 🪁 Shared State: https://docs.copilotkit.ai/pydantic-ai/shared-state
@@ -145,12 +157,17 @@ function YourMainContent() {
     appendMessageRef.current = appendMessage;
   }, [appendMessage]);
 
-  // Check for pending extraction URL on mount
+  // Check for pending extraction URL or recipe generation flow on mount
   useEffect(() => {
     const pendingUrl = sessionStorage.getItem("pendingExtractUrl");
+    const isRecipeGenFlow = sessionStorage.getItem("recipeGenerationFlow");
+    
     if (pendingUrl) {
       setInitialMessage(`Extract recipe from ${pendingUrl}`);
       sessionStorage.removeItem("pendingExtractUrl");
+    } else if (isRecipeGenFlow) {
+      setIsRecipeGeneration(true);
+      sessionStorage.removeItem("recipeGenerationFlow");
     }
   }, []);
 
@@ -175,12 +192,13 @@ function YourMainContent() {
   // 🪁 Dynamic Chat Suggestions: Context-aware suggestions based on agent state
   // Automatically generates relevant suggestions that adapt to:
   // - Initial state (getting started)
+  // - Recipe generation flow (AI recipe creation)
   // - Recipe loaded (recipe-specific actions)
   // - Processing state (minimal disruption)
   // - General conversation (diverse cooking tasks)
   useCopilotChatSuggestions(
     {
-      instructions: generateSuggestionInstructions(state),
+      instructions: generateSuggestionInstructions(state, isRecipeGeneration),
       minSuggestions: 2,
       maxSuggestions: 4,
     },
@@ -190,6 +208,7 @@ function YourMainContent() {
       state?.recipe_json?.cuisine,     // Cuisine-specific suggestions
       state?.recipe_json?.ingredients, // Ingredient-aware suggestions
       state?.processing_stage,         // Processing status
+      isRecipeGeneration,              // Recipe generation flow
     ]
   );
 
@@ -371,8 +390,13 @@ function YourMainContent() {
       // Show error state if extraction failed
       if (status === "complete" && !result?.success) {
         const hasPartialData = result?.has_ingredients || result?.has_instructions;
+        const hasRecipeName = result?.recipe_name && result.recipe_name.trim().length > 0;
         const hasExtractedContent = result?.extracted_content && result?.extracted_content.trim().length > 0;
-        const canGenerateWithAI = hasPartialData && hasExtractedContent;
+        
+        // Can generate if we have:
+        // 1. Partial data (ingredients/instructions) with extracted content, OR
+        // 2. Just a recipe name (even without full content - e.g., from TikTok title)
+        const canGenerateWithAI = (hasPartialData && hasExtractedContent) || hasRecipeName;
         
         return (
           <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl shadow-md">
@@ -391,7 +415,10 @@ function YourMainContent() {
                 {canGenerateWithAI && (
                   <div className="mt-3 pt-3 border-t border-red-200">
                     <p className="text-xs text-red-700 mb-2">
-                      We found partial recipe information{result?.recipe_name ? ` for "${result.recipe_name}"` : ''}. Would you like to generate a complete recipe using AI?
+                      {hasPartialData && hasExtractedContent 
+                        ? `We found partial recipe information${result?.recipe_name ? ` for "${result.recipe_name}"` : ''}. Would you like to generate a complete recipe using AI?`
+                        : `We found a recipe name${result?.recipe_name ? ` "${result.recipe_name}"` : ''} but no full recipe. Would you like to generate a complete recipe using AI?`
+                      }
                     </p>
                     <button
                       onClick={() => {
@@ -531,7 +558,9 @@ function YourMainContent() {
                 suggestions="auto"
                 labels={{
                   title: 'Aura Chef Assistant',
-                  initial: initialMessage || "👋 Hi there! I'm your culinary AI assistant. How can I help you today?",
+                  initial: initialMessage || (isRecipeGeneration 
+                    ? "What delicious recipe shall we create together? Tell me a dish name, cuisine style, or ingredients you'd like to use! 🍳✨"
+                    : "Ready to turn any recipe URL into cooking magic or generate AI-powered recipes? Drop a link or ask me to create something delicious! ✨"),
                 }}
             />
             </div>

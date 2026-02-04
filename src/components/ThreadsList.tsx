@@ -17,7 +17,6 @@ import { useRouter } from "next/navigation";
 import { useThreadManager } from "@/hooks/useThreadManager";
 import { useCopilotContext } from "@copilotkit/react-core";
 import { ChatThread } from "@/lib/types";
-import { toast } from "react-hot-toast";
 
 interface ThreadsListProps {
   onClose: () => void;
@@ -37,7 +36,7 @@ export function ThreadsList({ onClose }: ThreadsListProps) {
       onClose();
     } catch (error) {
       console.error("Error switching thread:", error);
-      toast.error("Failed to switch conversation");
+      // Toast is already shown by useThreadManager
     }
   };
 
@@ -52,10 +51,10 @@ export function ThreadsList({ onClose }: ThreadsListProps) {
       setDeletingThreadId(threadId);
       await deleteThread(threadId);
       setConfirmDeleteId(null);
-      toast.success("Conversation deleted");
+      // Toast is already shown by useThreadManager
     } catch (error) {
       console.error("Error deleting thread:", error);
-      toast.error("Failed to delete conversation");
+      // Toast is already shown by useThreadManager
     } finally {
       setDeletingThreadId(null);
     }

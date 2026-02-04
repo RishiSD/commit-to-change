@@ -15,7 +15,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useThreadManager } from "@/hooks/useThreadManager";
 import { ThreadsList } from "@/components/ThreadsList";
-import { toast } from "react-hot-toast";
 
 const THEME_COLOR = "#e86d4f";
 
@@ -30,10 +29,9 @@ export function Navigation() {
       setIsCreatingThread(true);
       await createNewThread();
       router.push("/chat");
-      toast.success("New conversation started");
     } catch (error) {
       console.error("Error creating new chat:", error);
-      toast.error("Failed to create new conversation");
+      // Toast is already shown by useThreadManager
     } finally {
       setIsCreatingThread(false);
     }

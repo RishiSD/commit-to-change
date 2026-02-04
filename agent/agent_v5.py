@@ -84,12 +84,13 @@ For URLs:
 - Check result['success'] to see if extraction worked
 - If success=True: Store result['recipe_json'] in recipe_json state field and STOP - do not say anything, do not acknowledge, do not confirm (the recipe card UI will be displayed automatically)
 - If success=False: Check result['error'] and result['reason'] for details
-  * If result['extracted_content'] exists (partial data available):
+  * If result['extracted_content'] exists (partial data available) OR result['recipe_name'] exists:
     - Store partial data in state: partial_extraction_content, partial_extraction_url, 
       partial_has_ingredients, partial_has_instructions, extracted_recipe_name
     - IMPORTANT: Also store partial_recipe_data (if available) - this contains structured ingredient/step data
-    - Inform the user briefly that partial information was found but extraction failed. The UI will offer an option to generate with AI.
-  * If no partial data: Provide brief helpful feedback about the error
+    - IMPORTANT: Even if only recipe_name exists (no ingredients/instructions - e.g., TikTok video title), still store it
+    - Inform the user briefly that extraction failed. The UI will automatically offer an option to generate with AI.
+  * If no partial data AND no recipe_name: Provide brief helpful feedback about the error
 
 For recipe names:
 - Use extract_recipe_name(text) to identify the recipe
