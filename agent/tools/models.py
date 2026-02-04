@@ -398,6 +398,10 @@ class ValidateAndFormatOutput(BaseModel):
         default=None,
         description="Structured recipe data (only if valid recipe) - will be converted to RecipeJSON"
     )
+    partial_recipe_data: Optional[RecipeDataForLLM] = Field(
+        default=None,
+        description="Partial/incomplete recipe data extracted from invalid recipe (when has_ingredients or has_instructions is True)"
+    )
     recipe_name: Optional[str] = Field(
         default=None,
         description="Extracted recipe name/title"
@@ -514,6 +518,14 @@ class UnifiedRecipeResult(BaseModel):
     )
     reason: str = Field(
         description="Explanation of the outcome"
+    )
+    extracted_content: Optional[str] = Field(
+        default=None,
+        description="Raw extracted content (only populated when extraction fails with partial data)"
+    )
+    partial_recipe_data: Optional[dict] = Field(
+        default=None,
+        description="Partial structured recipe data (when extraction failed but partial info available)"
     )
     
     class Config:

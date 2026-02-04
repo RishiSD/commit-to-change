@@ -35,6 +35,13 @@ class AgentState(CopilotKitState):
     recipe_json: Optional[dict]  # Changed from recipe_content (markdown)
     extracted_recipe_name: Optional[str]
     
+    # Partial extraction data (for failed extractions with partial info)
+    partial_extraction_content: Optional[str]
+    partial_extraction_url: Optional[str]
+    partial_has_ingredients: Optional[bool]
+    partial_has_instructions: Optional[bool]
+    partial_recipe_data: Optional[dict]
+    
     # ReAct agent required
     remaining_steps: int
     
@@ -76,7 +83,13 @@ For URLs:
 - Single call to extract_and_process_recipe(url)
 - Check result['success'] to see if extraction worked
 - If success=True: Store result['recipe_json'] in recipe_json state field and STOP - do not say anything, do not acknowledge, do not confirm (the recipe card UI will be displayed automatically)
-- If success=False: Check result['error'] and result['reason'] for details and provide brief helpful feedback to the user
+- If success=False: Check result['error'] and result['reason'] for details
+  * If result['extracted_content'] exists (partial data available):
+    - Store partial data in state: partial_extraction_content, partial_extraction_url, 
+      partial_has_ingredients, partial_has_instructions, extracted_recipe_name
+    - IMPORTANT: Also store partial_recipe_data (if available) - this contains structured ingredient/step data
+    - Inform the user briefly that partial information was found but extraction failed. The UI will offer an option to generate with AI.
+  * If no partial data: Provide brief helpful feedback about the error
 
 For recipe names:
 - Use extract_recipe_name(text) to identify the recipe
@@ -84,6 +97,20 @@ For recipe names:
 - Check result['success'] to see if generation worked
 - If success=True: Store result['recipe_json'] in recipe_json state field and STOP - do not say anything, do not acknowledge, do not confirm (the recipe card UI will be displayed automatically)
 - If success=False OR extract_recipe_name returns low confidence: Provide brief helpful feedback to the user
+
+For AI generation from partial extraction data:
+- When user explicitly requests to generate from partial data (e.g., "generate recipe using the partial information")
+- Retrieve the partial data from state: partial_extraction_content, partial_extraction_url, etc.
+- Call generate_recipe_from_knowledge with these additional parameters:
+  * recipe_name: from extracted_recipe_name (or use "Recipe" if missing - the tool will infer a better name from content)
+  * partial_content: from partial_extraction_content
+  * partial_recipe_data: from partial_recipe_data (IMPORTANT: pass this if available for better generation quality)
+  * source_url: from partial_extraction_url
+  * has_ingredients: from partial_has_ingredients
+  * has_instructions: from partial_has_instructions
+- The agent will use this partial information to create a more accurate complete recipe
+- If the recipe name is missing or generic, the AI will infer an appropriate name from the partial content
+- If success=True: Clear the partial data from state and store the recipe in recipe_json
 
 **CRITICAL RULE - ZERO RESPONSE:**
 When you successfully store a recipe in recipe_json, you MUST output ABSOLUTELY NO TEXT. Your response must be completely empty. Do not say:

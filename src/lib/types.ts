@@ -29,6 +29,20 @@ export type AgentState = {
   processing_stage?: string;
   recipe_json?: RecipeJSON;
   extracted_recipe_name?: string;
+  extracted_content?: string;
+  partial_recipe_data?: {
+    title?: string;
+    ingredients?: RecipeIngredient[];
+    steps?: string[];
+    tags?: string[];
+    servings?: number;
+    prep_time?: string;
+    cook_time?: string;
+    total_time?: string;
+    difficulty?: "easy" | "medium" | "hard";
+    cuisine?: string;
+    additional_info?: string[];
+  };
 };
 
 // Chat History Types

@@ -13,7 +13,7 @@ import {
   useCopilotChat,
 } from "@copilotkit/react-core";
 import { CopilotKitCSSProperties, CopilotChat, useCopilotChatSuggestions } from "@copilotkit/react-ui";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AgentState } from "@/lib/types";
 import { TextMessage, MessageRole } from "@copilotkit/runtime-client-gql";
 
@@ -130,6 +130,7 @@ export function ChatInterface() {
 function YourMainContent() {
   const [initialMessage, setInitialMessage] = useState<string | null>(null);
   const [hasAutoSent, setHasAutoSent] = useState(false);
+  const appendMessageRef = useRef<((message: TextMessage) => void) | null>(null);
   
   // 🪁 Shared State: https://docs.copilotkit.ai/pydantic-ai/shared-state
   const { state, setState } = useCoAgent({
@@ -138,6 +139,11 @@ function YourMainContent() {
 
   // Get chat methods for programmatic message sending
   const { appendMessage } = useCopilotChat();
+  
+  // Store appendMessage in ref so it can be accessed from button clicks
+  useEffect(() => {
+    appendMessageRef.current = appendMessage;
+  }, [appendMessage]);
 
   // Check for pending extraction URL on mount
   useEffect(() => {
@@ -256,6 +262,20 @@ function YourMainContent() {
     },
   });
 
+  // 🪁 Frontend tool to provide extracted content to agent for AI generation
+  useFrontendTool({
+    name: "get_partial_extraction_data",
+    description: "Get the partial extraction data from a failed recipe extraction. Call this when the user asks to generate a recipe from partial extraction data.",
+    parameters: [],
+    handler: () => {
+      // Return the extracted content stored in state
+      return {
+        extracted_content: state?.extracted_content || null,
+        recipe_name: state?.extracted_recipe_name || null,
+      };
+    },
+  });
+
   // //🪁 Generative UI: https://docs.copilotkit.ai/pydantic-ai/generative-ui
   // useRenderToolCall({
   //   name: "get_weather",
@@ -350,19 +370,51 @@ function YourMainContent() {
 
       // Show error state if extraction failed
       if (status === "complete" && !result?.success) {
+        const hasPartialData = result?.has_ingredients || result?.has_instructions;
+        const hasExtractedContent = result?.extracted_content && result?.extracted_content.trim().length > 0;
+        const canGenerateWithAI = hasPartialData && hasExtractedContent;
+        
         return (
           <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl shadow-md">
             <div className="flex items-start gap-3">
               <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-red-800">
                   Could not extract recipe
                 </p>
                 <p className="text-xs text-red-600 mt-1">
-                  {result?.error || "Unknown error occurred"}
+                  {result?.reason || result?.error || "Unknown error occurred"}
                 </p>
+                
+                {canGenerateWithAI && (
+                  <div className="mt-3 pt-3 border-t border-red-200">
+                    <p className="text-xs text-red-700 mb-2">
+                      We found partial recipe information{result?.recipe_name ? ` for "${result.recipe_name}"` : ''}. Would you like to generate a complete recipe using AI?
+                    </p>
+                    <button
+                      onClick={() => {
+                        // Send a message to trigger AI generation with partial data
+                        if (appendMessageRef.current) {
+                          const recipeName = result.recipe_name || "the recipe from this source";
+                          appendMessageRef.current(
+                            new TextMessage({
+                              role: MessageRole.User,
+                              content: `Generate a complete recipe using the partial information you extracted${result.recipe_name ? ` for "${result.recipe_name}"` : ''}.`,
+                            })
+                          );
+                        }
+                      }}
+                      className="px-4 py-2 bg-[var(--primary-500)] hover:bg-[var(--primary-600)] text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+                      style={{
+                        backgroundColor: THEME_COLOR,
+                      }}
+                    >
+                      Generate Recipe with AI
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

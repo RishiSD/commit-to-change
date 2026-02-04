@@ -1,6 +1,6 @@
 """Recipe generation from LLM knowledge."""
 
-from typing import Annotated
+from typing import Annotated, Optional
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 from langchain_core.messages import SystemMessage
@@ -11,7 +11,12 @@ from .models import GeneratedRecipe, RecipeDataForLLM, RecipeJSON
 @tool
 def generate_recipe_from_knowledge(
     recipe_name: str, 
-    state: Annotated[dict, InjectedState]
+    state: Annotated[dict, InjectedState],
+    partial_content: Optional[str] = None,
+    partial_recipe_data: Optional[dict] = None,
+    source_url: Optional[str] = None,
+    has_ingredients: bool = False,
+    has_instructions: bool = False
 ) -> dict:
     """Generate a complete, authentic recipe from your knowledge base.
     
@@ -35,7 +40,13 @@ def generate_recipe_from_knowledge(
     - Suggest variations or substitutions where appropriate
     
     Args:
-        recipe_name: The name of the recipe to generate (e.g., "Chicken Tikka Masala")
+        recipe_name: The name of the recipe to generate (e.g., "Chicken Tikka Masala"). 
+                     If missing or generic and partial_content is provided, will infer name from content.
+        partial_content: Optional raw extracted content from failed extraction (use as reference)
+        partial_recipe_data: Optional structured partial data (ingredients/steps) extracted from failed extraction
+        source_url: Optional source URL where partial content was extracted from
+        has_ingredients: Whether the partial content contains an ingredients list
+        has_instructions: Whether the partial content contains cooking instructions
         
     Returns:
         GeneratedRecipe with:
@@ -98,7 +109,90 @@ def generate_recipe_from_knowledge(
         # Use structured output to generate RecipeDataForLLM
         structured_model = model.with_structured_output(RecipeDataForLLM)
         
-        generation_prompt = f"""Generate a complete, authentic recipe for {recipe_name}.
+        # Handle cases where recipe_name might be missing or generic
+        # If we have partial content, let the AI infer a better name
+        recipe_name_instruction = ""
+        if partial_content and (not recipe_name or recipe_name in ["this recipe", "the recipe", "Unknown Recipe", "the recipe from this source"]):
+            recipe_name_instruction = """
+
+**IMPORTANT - RECIPE NAME:** 
+The recipe name was not clearly identified. Please analyze the partial content below and infer an appropriate, descriptive recipe name based on the ingredients and instructions provided. The title should be specific and appealing."""
+            base_recipe_ref = "the recipe based on the partial information provided"
+        else:
+            base_recipe_ref = recipe_name
+        
+        # Build generation prompt with optional partial content context
+        generation_prompt = f"""Generate a complete, authentic recipe for {base_recipe_ref}.{recipe_name_instruction}"""
+        
+        # Add structured partial data if available (preferred)
+        if partial_recipe_data:
+            ingredients_info = partial_recipe_data.get('ingredients', [])
+            steps_info = partial_recipe_data.get('steps', [])
+            
+            generation_prompt += f"""
+
+**STRUCTURED PARTIAL DATA EXTRACTED:**
+This partial recipe data was extracted from {source_url or 'the source'}.
+
+Partial Ingredients ({len(ingredients_info)} items):"""
+            
+            for ing in ingredients_info[:15]:  # Show up to 15 ingredients
+                name = ing.get('name', 'Unknown')
+                qty = ing.get('quantity', '')
+                unit = ing.get('unit', '')
+                if qty:
+                    generation_prompt += f"\n- {name}: {qty} {unit}".strip()
+                else:
+                    generation_prompt += f"\n- {name} (quantity missing)"
+            
+            if len(ingredients_info) > 15:
+                generation_prompt += f"\n... and {len(ingredients_info) - 15} more ingredients"
+            
+            if steps_info:
+                generation_prompt += f"""
+
+Partial Steps ({len(steps_info)} steps):"""
+                for i, step in enumerate(steps_info[:8], 1):  # Show up to 8 steps
+                    generation_prompt += f"\n{i}. {step}"
+                
+                if len(steps_info) > 8:
+                    generation_prompt += f"\n... and {len(steps_info) - 8} more steps"
+            
+            generation_prompt += """
+
+**IMPORTANT - USE THIS STRUCTURED DATA AS YOUR FOUNDATION:**
+- Keep ALL the ingredients listed above, but add proper quantities where missing (empty quantities)
+- Use standard measurements appropriate for the recipe type and serving size
+- Expand and complete the partial steps into full, detailed, clear instructions
+- Add any missing ingredients that are standard for this type of recipe
+- Ensure all measurements are accurate, realistic, and consistent
+- Maintain the order and structure of the partial data
+- If the title is unclear, infer an appropriate name from the ingredients and cooking method
+"""
+        
+        # Fall back to raw text if no structured data available
+        elif partial_content:
+            generation_prompt += f"""
+
+**PARTIAL EXTRACTION CONTEXT:**
+The following partial information was extracted from {source_url or 'a source'}:
+
+{partial_content}
+
+This extracted content contains:
+- Ingredients list: {'Yes' if has_ingredients else 'No'}
+- Cooking instructions: {'Yes' if has_instructions else 'No'}
+
+**IMPORTANT:** Use this partial information as a reference and starting point, but fill in ALL missing details:
+- Add specific quantities and measurements where missing
+- Complete any incomplete or vague instructions
+- Add any standard ingredients that may be implied but not explicitly listed
+- Ensure all measurements are accurate and realistic
+- Expand brief instructions into clear, detailed steps
+- If the recipe name is unclear, infer an appropriate name from the ingredients and cooking method
+"""
+        
+        generation_prompt += """
 
 Follow these requirements:
 
@@ -147,9 +241,10 @@ Generate the recipe as structured JSON data."""
             recipe_data = recipe_data_result
         
         # Convert RecipeDataForLLM to RecipeJSON (adds id, created_at, source_url)
+        # Use source_url if provided (when generating from partial extraction)
         recipe_json = RecipeJSON(
             **recipe_data.model_dump(),
-            source_url=None  # No URL for generated recipes
+            source_url=source_url if source_url else None
         )
         
         result = GeneratedRecipe(

@@ -699,7 +699,7 @@ def _validate_and_format_combined(
         # Truncate content to avoid token limits
         truncated_content = content #[:CONTENT_TRUNCATE_LENGTH]
         
-        prompt = f"""You are a recipe extraction and structuring expert. Analyze the following content and perform TWO tasks:
+        prompt = f"""You are a recipe extraction and structuring expert. Analyze the following content and perform THREE tasks:
 
 **TASK 1: VALIDATE**
 Determine if this content contains a COMPLETE, VALID recipe.
@@ -714,6 +714,7 @@ BE STRICT - reject:
 - Equipment guides
 - Ingredient lists without cooking steps
 - Cooking steps without ingredient lists
+- Ingredients WITHOUT quantities (this is invalid, but continue to TASK 2B)
 
 **TASK 2A: EXTRACT AS JSON (if valid recipe)**
 If valid, extract the recipe as structured JSON with these fields:
@@ -738,7 +739,26 @@ IMPORTANT for ingredients:
 - For "to taste" or "as needed" → quantity: "to taste", unit: ""
 - Normalize units (e.g., "c" → "cups", "tsp" → "teaspoons")
 
-**TASK 2B: EXTRACT FOLLOW-UP URL (if invalid recipe)**
+Store the complete recipe in the recipe_data field and set partial_recipe_data to null.
+
+**TASK 2B: EXTRACT PARTIAL DATA (if invalid recipe BUT has some ingredients or instructions)**
+If the recipe is INVALID but contains partial information (ingredients list OR cooking instructions):
+- Extract whatever structured data is available into partial_recipe_data
+- For ingredients WITHOUT quantities: set quantity to "" (empty string) and unit to ""
+- For incomplete instructions: extract the steps that are present
+- Extract title, tags, and any metadata available
+- This is a best-effort extraction of incomplete data
+
+Example partial data:
+- Ingredient "flour" with no quantity → {{"name": "flour", "quantity": "", "unit": ""}}
+- Ingredient "salt" with no quantity → {{"name": "salt", "quantity": "", "unit": ""}}
+- Vague step "cook until done" → Keep as-is in steps array
+- Missing servings → set to null
+
+Return this in partial_recipe_data field and set recipe_data to null.
+If NO ingredients AND NO instructions at all, set partial_recipe_data to null.
+
+**TASK 2C: EXTRACT FOLLOW-UP URL (if invalid recipe)**
 If NO valid recipe found, search the content for URLs that might contain the recipe:
 - Look for HTTP/HTTPS URLs in the text
 - Select the URL MOST LIKELY to contain a recipe
@@ -757,6 +777,7 @@ If NO valid recipe found, search the content for URLs that might contain the rec
 Return ValidateAndFormatOutput with:
 - is_valid_recipe: true/false
 - recipe_data: structured JSON object (ONLY if valid recipe, else null)
+- partial_recipe_data: structured JSON object (ONLY if invalid BUT has partial ingredients/instructions, else null)
 - recipe_name: extracted name or null
 - has_ingredients: true/false
 - has_instructions: true/false
@@ -889,6 +910,15 @@ def _extract_recursive(
     elif validate_format_result.follow_up_url and validate_format_result.follow_up_confidence < FOLLOW_UP_CONFIDENCE_THRESHOLD:
         error_msg += f" and follow-up URL confidence too low ({validate_format_result.follow_up_confidence:.2f} < {FOLLOW_UP_CONFIDENCE_THRESHOLD})"
     
+    # Store extracted content if we have partial data (ingredients or instructions found)
+    extracted_content = None
+    partial_recipe_data = None
+    if validate_format_result.has_ingredients or validate_format_result.has_instructions:
+        extracted_content = extraction_result.content
+        # Store partial structured data if available
+        if validate_format_result.partial_recipe_data:
+            partial_recipe_data = validate_format_result.partial_recipe_data.model_dump()
+    
     return UnifiedRecipeResult(
         success=False,
         recipe_json=None,
@@ -901,7 +931,9 @@ def _extract_recursive(
         extraction_depth=current_depth,
         error=error_msg,
         confidence=validate_format_result.confidence,
-        reason=validate_format_result.reason
+        reason=validate_format_result.reason,
+        extracted_content=extracted_content,
+        partial_recipe_data=partial_recipe_data
     ).model_dump()
 
 
