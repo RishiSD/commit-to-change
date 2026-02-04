@@ -1,9 +1,8 @@
 "use client";
 
-import { WeatherCard } from "@/components/weather";
-import { MoonCard } from "@/components/moon";
 import { RecipeSearchCard } from "@/components/recipe-search";
 import { RecipeCard } from "@/components/recipe/RecipeCard";
+import { Navigation } from "@/components/Navigation";
 import {
   CatchAllActionRenderProps,
   useCoAgent,
@@ -11,29 +10,98 @@ import {
   useFrontendTool,
   useHumanInTheLoop,
   useRenderToolCall,
+  useCopilotChat,
 } from "@copilotkit/react-core";
-import { CopilotKitCSSProperties, CopilotChat } from "@copilotkit/react-ui";
-import { useEffect } from "react";
+import { CopilotKitCSSProperties, CopilotChat, useCopilotChatSuggestions } from "@copilotkit/react-ui";
+import { useEffect, useState } from "react";
+import { AgentState } from "@/lib/types";
+import { TextMessage, MessageRole } from "@copilotkit/runtime-client-gql";
 
 const THEME_COLOR = "#e86d4f";
 
+/**
+ * Generates context-aware instructions for AI-powered chat suggestions.
+ * Analyzes the current agent state to provide relevant, actionable suggestions.
+ * 
+ * @param state - Current agent state including recipe data, errors, and processing stage
+ * @returns Instruction string for the AI to generate appropriate suggestions
+ */
+function generateSuggestionInstructions(state: AgentState | undefined): string {
+  // Handle undefined state
+  if (!state) {
+    return `Suggest 3-4 helpful ways to get started with Aura Chef. Focus on:
+- Extracting recipes from popular sites (AllRecipes, Food Network, NYT Cooking)
+- Generating recipes by name (e.g., "chicken tikka masala", "pasta carbonara")
+- Asking cooking questions and getting culinary advice
+Make suggestions specific, actionable, and conversational.`;
+  }
+
+  // Recipe is loaded - provide recipe-specific suggestions
+  if (state.recipe_json) {
+    const recipe = state.recipe_json;
+    const cuisine = recipe.cuisine ? `${recipe.cuisine} ` : '';
+    const ingredientCount = recipe.ingredients?.length || 0;
+    const servings = recipe.servings || 'unspecified';
+    const difficulty = recipe.difficulty || 'medium';
+    
+    return `A ${cuisine}recipe for "${recipe.title}" is currently displayed with ${ingredientCount} ingredients, serves ${servings}, difficulty: ${difficulty}.
+
+Suggest 3-4 relevant follow-up actions that are SPECIFIC to this recipe. Examples:
+- Scaling: "Scale this recipe for 6 people" or "Adjust servings to 2"
+- Ingredient substitutions: "What can I substitute for [specific ingredient from the recipe]?"
+- Cooking techniques: "Explain the [technique mentioned in steps] technique"
+- Pairing suggestions: "What wine pairs well with ${recipe.title}?"
+- Side dishes: "What side dish would go well with this?"
+- Cooking timeline: "Create a cooking timeline for this recipe"
+- Similar recipes: "Find similar ${cuisine}recipes"
+- Next meal: "Suggest a dessert to complete this meal"
+
+Make suggestions conversational, specific to the loaded recipe's context, and immediately actionable.`;
+  }
+
+  // Processing state - minimal suggestions during operations
+  if (state.processing_stage) {
+    return `The assistant is currently processing: ${state.processing_stage}.
+
+Suggest 1-2 brief, non-disruptive actions:
+- What they could do after this completes
+- Related tasks they might want to queue up
+
+Keep suggestions short and respectful of the ongoing operation.`;
+  }
+
+  // Default/initial state - getting started suggestions
+  return `Suggest 3-4 helpful ways to interact with Aura Chef. Focus on:
+- Extracting recipes from URLs (mention specific popular sites like AllRecipes, Food Network, Bon Appétit)
+- Generating recipes by name with cuisine variety (Italian, Indian, Mexican, etc.)
+- Asking cooking questions (techniques, ingredient info, meal planning)
+- Getting culinary advice and tips
+
+Make suggestions diverse, specific, and appealing to different user intents.`;
+}
+
 export function ChatInterface() {
   return (
-    <main
-      style={
-        {
-          "--copilot-kit-primary-color": THEME_COLOR,
-          "--copilot-kit-contrast-color": "#ffffff",
-          "--copilot-kit-secondary-contrast-color": "#1f2937",
-          "--copilot-kit-background-color": "#ffffff",
-          "--copilot-kit-secondary-color": "#f3f4f6",
-          "--copilot-kit-muted-color": "#64748b",
-          "--copilot-kit-separator-color": "rgba(0, 0, 0, 0.08)",
-          "--copilot-kit-scrollbar-color": "rgba(147, 51, 234, 0.2)",
-        } as CopilotKitCSSProperties
-      }
-    className="relative h-screen w-full overflow-hidden bg-[var(--neutral-50)]"
-    >
+    <div className="flex flex-col h-screen overflow-hidden bg-[var(--neutral-50)]">
+      {/* Navigation at top */}
+      <Navigation />
+      
+      {/* Chat content */}
+      <main
+        style={
+          {
+            "--copilot-kit-primary-color": THEME_COLOR,
+            "--copilot-kit-contrast-color": "#ffffff",
+            "--copilot-kit-secondary-contrast-color": "#1f2937",
+            "--copilot-kit-background-color": "#ffffff",
+            "--copilot-kit-secondary-color": "#f3f4f6",
+            "--copilot-kit-muted-color": "#64748b",
+            "--copilot-kit-separator-color": "rgba(0, 0, 0, 0.08)",
+            "--copilot-kit-scrollbar-color": "rgba(147, 51, 234, 0.2)",
+          } as CopilotKitCSSProperties
+        }
+        className="relative flex-1 w-full overflow-hidden"
+      >
       {/* Floating orbs background effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div 
@@ -55,14 +123,69 @@ export function ChatInterface() {
         <YourMainContent />
       </div>
     </main>
+    </div>
   );
 }
 
 function YourMainContent() {
+  const [initialMessage, setInitialMessage] = useState<string | null>(null);
+  const [hasAutoSent, setHasAutoSent] = useState(false);
+  
   // 🪁 Shared State: https://docs.copilotkit.ai/pydantic-ai/shared-state
   const { state, setState } = useCoAgent({
     name: "sample_agent",
   });
+
+  // Get chat methods for programmatic message sending
+  const { appendMessage } = useCopilotChat();
+
+  // Check for pending extraction URL on mount
+  useEffect(() => {
+    const pendingUrl = sessionStorage.getItem("pendingExtractUrl");
+    if (pendingUrl) {
+      setInitialMessage(`Extract recipe from ${pendingUrl}`);
+      sessionStorage.removeItem("pendingExtractUrl");
+    }
+  }, []);
+
+  // Auto-send the initial message if present
+  useEffect(() => {
+    if (initialMessage && !hasAutoSent) {
+      // Small delay to ensure chat is fully mounted
+      const timer = setTimeout(() => {
+        appendMessage(
+          new TextMessage({
+            role: MessageRole.User,
+            content: initialMessage,
+          })
+        );
+        setHasAutoSent(true);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [initialMessage, hasAutoSent, appendMessage]);
+
+  // 🪁 Dynamic Chat Suggestions: Context-aware suggestions based on agent state
+  // Automatically generates relevant suggestions that adapt to:
+  // - Initial state (getting started)
+  // - Recipe loaded (recipe-specific actions)
+  // - Processing state (minimal disruption)
+  // - General conversation (diverse cooking tasks)
+  useCopilotChatSuggestions(
+    {
+      instructions: generateSuggestionInstructions(state),
+      minSuggestions: 2,
+      maxSuggestions: 4,
+    },
+    [
+      state?.recipe_json,              // Recipe content changes
+      state?.recipe_json?.title,       // Recipe details
+      state?.recipe_json?.cuisine,     // Cuisine-specific suggestions
+      state?.recipe_json?.ingredients, // Ingredient-aware suggestions
+      state?.processing_stage,         // Processing status
+    ]
+  );
 
   // Note: threadId is managed by CopilotKit and used internally for persistence
   // Messages are now persisted automatically by the agent's PostgreSQL checkpointer
@@ -319,7 +442,7 @@ function YourMainContent() {
 
   useCopilotAction({
     name: '*',
-    render: ({ name, args, status, result }: CatchAllActionRenderProps<[]>) => {
+    render: ({ name, args, status }: CatchAllActionRenderProps<[]>) => {
       return (
         <div className="m-4 p-4 bg-gray-100 rounded shadow">
           <h2 className="text-sm font-medium">Tool: {name}</h2>
@@ -353,16 +476,11 @@ function YourMainContent() {
               <CopilotChat
                 className="h-full w-full"
                 disableSystemMessage={true}
+                suggestions="auto"
                 labels={{
                   title: 'Aura Chef Assistant',
-                  initial: "👋 Hi there! I'm your culinary AI assistant. How can I help you today?",
+                  initial: initialMessage || "👋 Hi there! I'm your culinary AI assistant. How can I help you today?",
                 }}
-                suggestions={[
-                {
-                  title: 'AI Recipe Generation',
-                  message: 'I want a recipe for chicken tikka masala.',
-                }
-              ]}
             />
             </div>
           </div>

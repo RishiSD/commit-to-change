@@ -412,7 +412,7 @@ export async function threadHasUserMessages(threadId: string): Promise<boolean> 
 
     // The checkpoint contains channel data with messages
     // CopilotKit stores messages in the 'messages' channel
-    const channelData = (checkpoint as any).channel_values;
+    const channelData = (checkpoint as { channel_values?: { messages?: unknown[] } }).channel_values;
     if (!channelData || !channelData.messages) {
       return false;
     }
@@ -423,8 +423,9 @@ export async function threadHasUserMessages(threadId: string): Promise<boolean> 
     }
 
     // Check if any message has role "user"
-    return messages.some((msg: any) => {
-      return msg.type === 'human' || msg.role === 'user';
+    return messages.some((msg: unknown) => {
+      const message = msg as { type?: string; role?: string };
+      return message.type === 'human' || message.role === 'user';
     });
   } catch (err) {
     console.error("Error in threadHasUserMessages:", err);

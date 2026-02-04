@@ -40,7 +40,7 @@ export interface ChatMessage {
   user_id: string;
   role: MessageRole;
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -57,7 +57,7 @@ export interface CreateMessageInput {
   thread_id: string;
   role: MessageRole;
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateThreadInput {

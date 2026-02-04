@@ -4,7 +4,6 @@ import { CopilotKit } from "@copilotkit/react-core";
 import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
-import { useThreadManager } from "@/hooks/useThreadManager";
 import { Sidebar } from "@/components/Sidebar";
 import { useState, useLayoutEffect, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
@@ -36,9 +35,7 @@ function LayoutContent({
   signOut: () => Promise<void>;
   getAccessToken: () => string | null;
 }) {
-  const { threads, activeThread, createNewThread, switchThread, deleteThread } = useThreadManager();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const themeColor = "#e86d4f"; // Terracotta theme color for Aura Chef
 
   // Initial collapse state: auto-collapse on small screens
   useEffect(() => {
@@ -53,14 +50,8 @@ function LayoutContent({
         <Sidebar 
           user={user} 
           onSignOut={signOut} 
-          themeColor={themeColor} 
           collapsed={sidebarCollapsed} 
           setCollapsed={setSidebarCollapsed}
-          threads={threads}
-          activeThreadId={activeThread?.id || null}
-          onNewThread={createNewThread}
-          onSelectThread={switchThread}
-          onDeleteThread={deleteThread}
         />
       )}
       

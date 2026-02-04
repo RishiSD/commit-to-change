@@ -1,7 +1,7 @@
 "use client";
 
 import { LandingPage } from "@/components/landing/LandingPage";
-import { ChatInterface } from "@/components/ChatInterface";
+import { HomePage } from "@/components/HomePage";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useState, useLayoutEffect } from "react";
 
@@ -29,6 +29,6 @@ export default function Home() {
     );
   }
 
-  // Show landing page if not authenticated, otherwise show chat interface
-  return session ? <ChatInterface /> : <LandingPage />;
+  // Show landing page if not authenticated, otherwise show homepage with options
+  return session ? <HomePage /> : <LandingPage />;
 }

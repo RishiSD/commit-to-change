@@ -17,6 +17,7 @@
     "@copilotkit/react-core": "1.51.0",
     "@copilotkit/react-ui": "1.51.0",
     "@copilotkit/runtime": "1.51.0",
+    "@copilotkit/runtime-client-gql": "1.51.0",
     "@supabase/auth-ui-react": "^0.4.7",
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/ssr": "^0.8.0",
