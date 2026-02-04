@@ -115,8 +115,9 @@ export function useThreadManager(): UseThreadManager {
       // Switch CopilotKit to this thread (this will load messages automatically)
       setThreadId(threadId);
       
-      // Reset check flag to allow checking the newly loaded thread
-      setHasCheckedThread(false);
+      // Mark as checked - we're intentionally loading an existing thread
+      // This prevents the useEffect from creating a new thread
+      setHasCheckedThread(true);
       
       console.log(`Switched to thread: ${thread.title}`);
     } catch (error) {

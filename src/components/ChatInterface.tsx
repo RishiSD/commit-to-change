@@ -133,27 +133,27 @@ function YourMainContent() {
     },
   });
 
-  //🪁 Generative UI: https://docs.copilotkit.ai/pydantic-ai/generative-ui
-  useRenderToolCall({
-    name: "get_weather",
-    description: "Get the weather for a given location.",
-    parameters: [{ name: "location", type: "string", required: true }],
-    render: ({ args }) => {
-      return <WeatherCard location={args.location} themeColor={THEME_COLOR} />;
-    },
-  });
+  // //🪁 Generative UI: https://docs.copilotkit.ai/pydantic-ai/generative-ui
+  // useRenderToolCall({
+  //   name: "get_weather",
+  //   description: "Get the weather for a given location.",
+  //   parameters: [{ name: "location", type: "string", required: true }],
+  //   render: ({ args }) => {
+  //     return <WeatherCard location={args.location} themeColor={THEME_COLOR} />;
+  //   },
+  // });
 
 
-  // 🪁 Human In the Loop: https://docs.copilotkit.ai/pydantic-ai/human-in-the-loop
-  useHumanInTheLoop({
-    name: "go_to_moon",
-    description: "Go to the moon on request.",
-    render: ({ respond, status }) => {
-      return (
-        <MoonCard themeColor={THEME_COLOR} status={status} respond={respond} />
-      );
-    },
-  });
+  // // 🪁 Human In the Loop: https://docs.copilotkit.ai/pydantic-ai/human-in-the-loop
+  // useHumanInTheLoop({
+  //   name: "go_to_moon",
+  //   description: "Go to the moon on request.",
+  //   render: ({ respond, status }) => {
+  //     return (
+  //       <MoonCard themeColor={THEME_COLOR} status={status} respond={respond} />
+  //     );
+  //   },
+  // });
 
   // 🪁 Recipe Generation: Human-in-the-loop for AI-generated recipes
   useHumanInTheLoop({
@@ -359,30 +359,9 @@ function YourMainContent() {
                 }}
                 suggestions={[
                 {
-                  title: 'Generative UI',
-                  message: 'Get the weather in San Francisco.',
-                },
-                {
                   title: 'AI Recipe Generation',
                   message: 'I want a recipe for chicken tikka masala.',
-                },
-                {
-                  title: 'Human In the Loop',
-                  message: 'Please go to the moon.',
-                },
-                {
-                  title: 'Write Agent State',
-                  message: 'Add a proverb about AI.',
-                },
-                {
-                  title: 'Update Agent State',
-                  message:
-                    'Please remove 1 random proverb from the list if there are any.',
-                },
-                {
-                  title: 'Read Agent State',
-                  message: 'What are the proverbs?',
-                },
+                }
               ]}
             />
             </div>
