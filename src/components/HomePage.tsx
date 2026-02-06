@@ -14,7 +14,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useThreadManager } from "@/hooks/useThreadManager";
 import { ExtractRecipeModal } from "@/components/modals/ExtractRecipeModal";
 import { Navigation } from "@/components/Navigation";
 
@@ -22,15 +21,14 @@ const THEME_COLOR = "#e86d4f";
 
 export function HomePage() {
   const router = useRouter();
-  const { createNewThread } = useThreadManager();
   const [showExtractModal, setShowExtractModal] = useState(false);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
 
   const handleGenerateRecipe = async () => {
     try {
       setIsCreatingThread(true);
-      await createNewThread();
       // Set flag to indicate AI recipe generation flow
+      sessionStorage.removeItem("pendingFlowThreadCreated");
       sessionStorage.setItem("recipeGenerationFlow", "true");
       router.push("/chat");
     } catch (error) {

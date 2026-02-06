@@ -11,11 +11,14 @@ import {
   useHumanInTheLoop,
   useRenderToolCall,
   useCopilotChat,
+  useCopilotContext,
 } from "@copilotkit/react-core";
 import { CopilotKitCSSProperties, CopilotChat, useCopilotChatSuggestions } from "@copilotkit/react-ui";
-import { useEffect, useState, useRef } from "react";
-import { AgentState } from "@/lib/types";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { AgentState, RecipeJSON } from "@/lib/types";
 import { TextMessage, MessageRole } from "@copilotkit/runtime-client-gql";
+import { useThreadManager } from "@/hooks/useThreadManager";
+import { updateThreadTitle } from "@/lib/supabase/chatHistory";
 
 const THEME_COLOR = "#e86d4f";
 
@@ -91,6 +94,38 @@ Keep suggestions short and respectful of the ongoing operation.`;
 Make suggestions diverse, specific, and appealing to different user intents.`;
 }
 
+function getHostnameFromUrl(rawUrl?: string): string | null {
+  if (!rawUrl) {
+    return null;
+  }
+
+  try {
+    return new URL(rawUrl).hostname;
+  } catch {
+    try {
+      return new URL(`https://${rawUrl}`).hostname;
+    } catch {
+      return null;
+    }
+  }
+}
+
+interface RecipeCardWithRenameProps {
+  recipe: RecipeJSON;
+  source: "extraction" | "generation";
+  onTitle: (title: string, source: "extraction" | "generation") => void;
+}
+
+function RecipeCardWithRename({ recipe, source, onTitle }: RecipeCardWithRenameProps) {
+  useEffect(() => {
+    if (recipe?.title) {
+      onTitle(recipe.title, source);
+    }
+  }, [recipe?.title, onTitle, source]);
+
+  return <RecipeCard recipe={recipe} />;
+}
+
 export function ChatInterface() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[var(--neutral-50)]">
@@ -143,6 +178,12 @@ function YourMainContent() {
   const [hasAutoSent, setHasAutoSent] = useState(false);
   const [isRecipeGeneration, setIsRecipeGeneration] = useState(false);
   const appendMessageRef = useRef<((message: TextMessage) => void) | null>(null);
+  const hasInitializedFlowRef = useRef(false);
+  
+  // Track last recipe for auto-rename functionality
+  const [lastRecipeTitle, setLastRecipeTitle] = useState<string | null>(null);
+  const hasRenamedRef = useRef(false);
+  const lastRecipeThreadIdRef = useRef<string | null>(null);
   
   // 🪁 Shared State: https://docs.copilotkit.ai/pydantic-ai/shared-state
   const { state, setState } = useCoAgent({
@@ -151,6 +192,31 @@ function YourMainContent() {
 
   // Get chat methods for programmatic message sending
   const { appendMessage } = useCopilotChat();
+  
+  // Get thread context for auto-renaming
+  const { threadId } = useCopilotContext();
+  const { activeThread, refreshThreads, createNewThread } = useThreadManager();
+
+  const handleRecipeTitle = useCallback(
+    (title: string, source: "extraction" | "generation") => {
+      if (!threadId) {
+        return;
+      }
+      if (title && !hasRenamedRef.current) {
+        console.log(`[AUTO-RENAME] Setting recipe title from ${source}:`, title);
+        lastRecipeThreadIdRef.current = threadId;
+        setLastRecipeTitle(title);
+      }
+    },
+    [setLastRecipeTitle, threadId]
+  );
+
+  // Reset rename state when switching threads to avoid stale titles
+  useEffect(() => {
+    hasRenamedRef.current = false;
+    lastRecipeThreadIdRef.current = threadId ?? null;
+    setLastRecipeTitle(null);
+  }, [threadId]);
   
   // Store appendMessage in ref so it can be accessed from button clicks
   useEffect(() => {
@@ -161,15 +227,39 @@ function YourMainContent() {
   useEffect(() => {
     const pendingUrl = sessionStorage.getItem("pendingExtractUrl");
     const isRecipeGenFlow = sessionStorage.getItem("recipeGenerationFlow");
-    
+    const hasCreatedFlowThread = sessionStorage.getItem("pendingFlowThreadCreated");
+
+    if (hasInitializedFlowRef.current || (!pendingUrl && !isRecipeGenFlow) || hasCreatedFlowThread) {
+      return;
+    }
+
+    hasInitializedFlowRef.current = true;
+
+    sessionStorage.setItem("pendingFlowThreadCreated", "true");
+
     if (pendingUrl) {
-      setInitialMessage(`Extract recipe from ${pendingUrl}`);
       sessionStorage.removeItem("pendingExtractUrl");
-    } else if (isRecipeGenFlow) {
-      setIsRecipeGeneration(true);
+    }
+    if (isRecipeGenFlow) {
       sessionStorage.removeItem("recipeGenerationFlow");
     }
-  }, []);
+
+    const initializeFlow = async () => {
+      try {
+        await createNewThread();
+      } catch (error) {
+        console.error("Error creating thread for flow:", error);
+      } finally {
+        if (pendingUrl) {
+          setInitialMessage(`Extract recipe from ${pendingUrl}`);
+        } else if (isRecipeGenFlow) {
+          setIsRecipeGeneration(true);
+        }
+      }
+    };
+
+    initializeFlow();
+  }, [createNewThread]);
 
   // Auto-send the initial message if present
   useEffect(() => {
@@ -188,6 +278,75 @@ function YourMainContent() {
       return () => clearTimeout(timer);
     }
   }, [initialMessage, hasAutoSent, appendMessage]);
+
+  // 🪁 Auto-rename conversation to recipe name (only first recipe)
+  // Automatically renames the conversation when:
+  // - A recipe is successfully generated or extracted
+  // - The thread title is still the default "New Conversation"
+  // - Keeps the original recipe name even when modified recipes are created
+  useEffect(() => {
+    const autoRenameThread = async () => {
+      console.log('[AUTO-RENAME] Effect triggered', {
+        lastRecipeTitle,
+        hasRenamed: hasRenamedRef.current,
+        threadId,
+        activeThread: activeThread?.id,
+        activeThreadTitle: activeThread?.title,
+      });
+      
+      // Check all required conditions
+      if (!lastRecipeTitle) {
+        console.log('[AUTO-RENAME] No recipe title yet');
+        return;
+      }
+      if (lastRecipeThreadIdRef.current && lastRecipeThreadIdRef.current !== threadId) {
+        console.log('[AUTO-RENAME] Recipe title belongs to a different thread');
+        return;
+      }
+      if (hasRenamedRef.current) {
+        console.log('[AUTO-RENAME] Already renamed once');
+        return;
+      }
+      if (!threadId) {
+        console.log('[AUTO-RENAME] No threadId');
+        return;
+      }
+      if (!activeThread) {
+        console.log('[AUTO-RENAME] No activeThread');
+        return;
+      }
+      if (activeThread.title !== "New Conversation") {
+        console.log('[AUTO-RENAME] Thread already renamed:', activeThread.title);
+        return;
+      }
+      
+      try {
+        console.log('[AUTO-RENAME] Starting rename process...');
+        // Truncate to 100 chars with ellipsis if needed
+        const truncatedTitle = lastRecipeTitle.length > 100 
+          ? lastRecipeTitle.substring(0, 97) + '...'
+          : lastRecipeTitle;
+        
+        console.log('[AUTO-RENAME] Calling updateThreadTitle...', { threadId, truncatedTitle });
+        // Update thread title in database
+        await updateThreadTitle(threadId, truncatedTitle);
+        
+        // Mark as renamed to prevent multiple renames
+        hasRenamedRef.current = true;
+        
+        console.log('[AUTO-RENAME] Refreshing threads...');
+        // Refresh sidebar to show new name
+        await refreshThreads();
+        
+        console.log(`[AUTO-RENAME] SUCCESS: Thread renamed to "${truncatedTitle}"`);
+      } catch (error) {
+        // Silent fail - non-critical feature
+        console.error('[AUTO-RENAME] ERROR:', error);
+      }
+    };
+    
+    autoRenameThread();
+  }, [lastRecipeTitle, threadId, activeThread, refreshThreads]);
 
   // 🪁 Dynamic Chat Suggestions: Context-aware suggestions based on agent state
   // Automatically generates relevant suggestions that adapt to:
@@ -260,26 +419,6 @@ function YourMainContent() {
 
     return () => observer.disconnect();
   }, []);
-
-  // 🪁 Frontend Actions: https://docs.copilotkit.ai/coagents/frontend-actions
-  useFrontendTool({
-    name: "updateProverbs",
-    description: "Update the list of proverbs. Always describe what the proverbs you added are.",
-    parameters: [
-      {
-        name: "proverbs",
-        description: "What the current list of proverbs should be updated to",
-        type: "string[]",
-        required: true,
-      },
-    ],
-    handler: ({ proverbs }) => {
-      setState({
-        ...state,
-        proverbs: proverbs,
-      });
-    },
-  });
 
   // 🪁 Frontend tool to provide extracted content to agent for AI generation
   useFrontendTool({
@@ -371,7 +510,7 @@ function YourMainContent() {
                 Extracting recipe from URL...
               </p>
               <p className="text-xs text-[var(--primary-600)] mt-0.5">
-                {args.url && new URL(args.url).hostname}
+                {getHostnameFromUrl(args.url) || ""}
               </p>
             </div>
           </div>
@@ -381,10 +520,17 @@ function YourMainContent() {
       // Show recipe card when extraction is complete and successful
       if (status === "complete" && result?.success && result?.recipe_json) {
         console.log(
-          'Recipe extraction error:',
+          'Recipe extraction success:',
           JSON.stringify(result, null, 2),
         );
-        return <RecipeCard recipe={result.recipe_json} />;
+
+        return (
+          <RecipeCardWithRename
+            recipe={result.recipe_json}
+            source="extraction"
+            onTitle={handleRecipeTitle}
+          />
+        );
       }
 
       // Show error state if extraction failed
@@ -491,7 +637,13 @@ function YourMainContent() {
 
       // Show recipe card when generation is complete and successful
       if (status === "complete" && result?.success && result?.recipe_json) {
-        return <RecipeCard recipe={result.recipe_json} />;
+        return (
+          <RecipeCardWithRename
+            recipe={result.recipe_json}
+            source="generation"
+            onTitle={handleRecipeTitle}
+          />
+        );
       }
 
       // Show error state if generation failed

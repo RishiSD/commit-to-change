@@ -14,7 +14,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useThreadManager } from "@/hooks/useThreadManager";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -27,7 +26,6 @@ interface ExtractRecipeModalProps {
 
 export function ExtractRecipeModal({ isOpen, onClose }: ExtractRecipeModalProps) {
   const router = useRouter();
-  const { createNewThread } = useThreadManager();
   const [url, setUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,20 +55,18 @@ export function ExtractRecipeModal({ isOpen, onClose }: ExtractRecipeModalProps)
     try {
       setIsSubmitting(true);
 
-      // 1. Create new thread
-      await createNewThread();
-
-      // 2. Store the URL in sessionStorage to be picked up by chat interface
+      // 1. Store the URL in sessionStorage to be picked up by chat interface
+      sessionStorage.removeItem("pendingFlowThreadCreated");
       sessionStorage.setItem("pendingExtractUrl", url);
 
-      // 3. Success feedback
+      // 2. Success feedback
       toast.success("Opening chat...");
 
-      // 4. Close modal and reset
+      // 3. Close modal and reset
       onClose();
       setUrl("");
 
-      // 5. Navigate to chat
+      // 4. Navigate to chat
       router.push("/chat");
     } catch (error) {
       console.error("Error starting recipe extraction:", error);

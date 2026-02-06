@@ -16,6 +16,8 @@ import uvicorn
 
 from copilotkit import LangGraphAGUIAgent
 from ag_ui_langgraph import add_langgraph_fastapi_endpoint
+from ag_ui_langgraph.agent import LangGraphAgent
+from ag_ui_langgraph.utils import langchain_messages_to_agui
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 # Import all agent versions
@@ -30,6 +32,33 @@ load_dotenv()
 print(f"✓ Using Agent V5 with PostgreSQL persistence")
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
+# Patch: guard against missing message IDs in history when the client
+# sends only the latest message. Fall back to a safe merge of history + input.
+_ORIGINAL_PREPARE_STREAM = LangGraphAgent.prepare_stream
+
+
+async def _safe_prepare_stream(self, input, agent_state, config):
+    try:
+        return await _ORIGINAL_PREPARE_STREAM(self, input, agent_state, config)
+    except ValueError as exc:
+        if "Message ID not found in history" not in str(exc):
+            raise
+
+        history_messages = agent_state.values.get("messages", [])
+        merged_messages = langchain_messages_to_agui(history_messages) if history_messages else []
+
+        if input.messages:
+            merged_ids = {msg.id for msg in merged_messages if getattr(msg, "id", None)}
+            merged_messages.extend(
+                [msg for msg in input.messages if getattr(msg, "id", None) not in merged_ids]
+            )
+
+        fallback_input = input.copy(update={"messages": merged_messages})
+        return await _ORIGINAL_PREPARE_STREAM(self, fallback_input, agent_state, config)
+
+
+LangGraphAgent.prepare_stream = _safe_prepare_stream
 
 # Global variable to store the agent (initialized in lifespan)
 agent_graph = None
