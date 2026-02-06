@@ -8,13 +8,14 @@ with automatic follow-up link detection and recursive extraction.
 import re
 from typing import Optional
 from langchain_core.tools import tool
-from langchain_core.messages import SystemMessage
+from langchain_core.prompts import ChatPromptTemplate
 import requests
 from bs4 import BeautifulSoup
 
 from .models import UnifiedRecipeResult, ValidateAndFormatOutput
 from utils.retry import with_retry
 from utils.model import get_model
+from utils.prompts import VALIDATE_AND_FORMAT_PROMPT
 
 
 # =============================================================================
@@ -686,95 +687,20 @@ def _validate_and_format_combined(
         # Truncate content to avoid token limits
         truncated_content = content #[:CONTENT_TRUNCATE_LENGTH]
         
-        prompt = f"""You are a recipe extraction and structuring expert. Analyze the following content and perform THREE tasks:
+        prompt_template = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                VALIDATE_AND_FORMAT_PROMPT,
+            )
+        ])
 
-**TASK 1: VALIDATE**
-Determine if this content contains a COMPLETE, VALID recipe.
+        prompt_messages = prompt_template.format_messages(
+            content=truncated_content,
+            url=url,
+            depth=depth,
+        )
 
-A valid recipe MUST have BOTH:
-1. Ingredients list (quantities are optional - ingredients can be listed with or without measurements)
-2. Step-by-step cooking/preparation instructions
-
-BE STRICT - reject:
-- Restaurant reviews or menus
-- Nutrition articles without recipes
-- Equipment guides
-- Ingredient lists without cooking steps (MISSING STEPS makes recipe invalid)
-- Cooking steps without ingredient lists (MISSING INGREDIENTS makes recipe invalid)
-
-NOTE: Ingredients WITHOUT quantities are acceptable (e.g., "flour", "salt") - only MISSING ingredients or MISSING steps make a recipe invalid.
-
-**TASK 2A: EXTRACT AS JSON (if valid recipe)**
-If valid, extract the recipe as structured JSON with these fields:
-- title: Recipe name/title
-- ingredients: Array of objects with {{name, quantity, unit}}
-  * name: ingredient name (e.g., "All-purpose flour", "Garlic")
-  * quantity: numeric value OR string for ranges/descriptions (e.g., 2, 2.5, "2-3", "to taste") could be empty string if no quantity provided
-  * unit: measurement unit (e.g., "cups", "g", "cloves", "tbsp", "pinch")
-- steps: Array of instruction strings (ordered)
-- tags: Array of descriptive tags (e.g., ["italian", "vegetarian", "quick", "easy"])
-- servings: Number of servings (integer, if available)
-- prep_time: Preparation time (string like "15 minutes", if available)
-- cook_time: Cooking time (string like "30 minutes", if available)
-- total_time: Total time (string like "45 minutes", if available)
-- difficulty: One of "easy", "medium", or "hard" (if you can infer)
-- cuisine: Cuisine type (e.g., "Italian", "Indian", "Mexican", if identifiable)
-- additional_info: Array of helpful tips, storage instructions, substitutions, or serving suggestions (if available in content)
-
-IMPORTANT for ingredients:
-- Parse quantities carefully (e.g., "2 cups" → quantity: 2, unit: "cups")
-- For ranges use strings (e.g., "2-3 cloves" → quantity: "2-3", unit: "cloves")
-- For "to taste" or "as needed" → quantity: "to taste", unit: ""
-- Normalize units (e.g., "c" → "cups", "tsp" → "teaspoons")
-
-Store the complete recipe in the recipe_data field and set partial_recipe_data to null.
-
-**TASK 2B: EXTRACT PARTIAL DATA (if invalid recipe BUT has some ingredients or instructions)**
-If the recipe is INVALID but contains partial information (ingredients list OR cooking instructions):
-- Extract whatever structured data is available into partial_recipe_data
-- For ingredients WITHOUT quantities: set quantity to "" (empty string) and unit to ""
-- For incomplete instructions: extract the steps that are present
-- Extract title, tags, and any metadata available
-- This is a best-effort extraction of incomplete data
-
-Example partial data:
-- Ingredient "flour" with no quantity → {{"name": "flour", "quantity": "", "unit": ""}}
-- Ingredient "salt" with no quantity → {{"name": "salt", "quantity": "", "unit": ""}}
-- Vague step "cook until done" → Keep as-is in steps array
-- Missing servings → set to null
-
-Return this in partial_recipe_data field and set recipe_data to null.
-If NO ingredients AND NO instructions at all, set partial_recipe_data to null.
-
-**TASK 2C: EXTRACT FOLLOW-UP URL (if invalid recipe)**
-If NO valid recipe found, search the content for URLs that might contain the recipe:
-- Look for HTTP/HTTPS URLs in the text
-- Select the URL MOST LIKELY to contain a recipe
-- Prefer URLs with: /recipe/, /recipes/, cooking/food domains
-- Avoid: home pages, about pages, social media profiles
-- Return null if no good candidate exists
-- Provide confidence score (0.0-1.0) for the follow-up URL
-
-**CONTENT TO ANALYZE:**
-{truncated_content}
-
-**SOURCE URL:** {url}
-**CURRENT DEPTH:** {depth}
-
-**OUTPUT REQUIREMENTS:**
-Return ValidateAndFormatOutput with:
-- is_valid_recipe: true/false
-- recipe_data: structured JSON object (ONLY if valid recipe, else null)
-- partial_recipe_data: structured JSON object (ONLY if invalid BUT has partial ingredients/instructions, else null)
-- recipe_name: extracted name or null
-- has_ingredients: true/false
-- has_instructions: true/false
-- follow_up_url: best URL to follow (ONLY if invalid recipe, else null)
-- follow_up_confidence: 0.0-1.0 (confidence in follow-up URL)
-- reason: clear explanation of your decision
-- confidence: overall confidence score 0.0-1.0"""
-        
-        result = structured_model.invoke([SystemMessage(content=prompt)])
+        result = structured_model.invoke(prompt_messages)
         # Ensure we return a ValidateAndFormatOutput instance
         if isinstance(result, dict):
             return ValidateAndFormatOutput(**result)

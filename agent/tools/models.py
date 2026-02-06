@@ -38,48 +38,6 @@ class ExtractionResult(BaseModel):
             }
         }
 
-
-class ValidationResult(BaseModel):
-    """
-    Result from recipe content validation.
-    
-    Returned by: validate_recipe_content
-    """
-    is_valid_recipe: bool = Field(
-        description="True if content contains a complete recipe"
-    )
-    recipe_name: Optional[str] = Field(
-        default=None, 
-        description="Extracted recipe name/title"
-    )
-    has_ingredients: bool = Field(
-        description="Whether an ingredients list with quantities exists"
-    )
-    has_instructions: bool = Field(
-        description="Whether step-by-step instructions exist"
-    )
-    reason: str = Field(
-        description="Explanation of validation decision"
-    )
-    confidence: float = Field(
-        ge=0.0, 
-        le=1.0, 
-        description="Confidence score from 0.0 to 1.0"
-    )
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "is_valid_recipe": True,
-                "recipe_name": "Chocolate Chip Cookies",
-                "has_ingredients": True,
-                "has_instructions": True,
-                "reason": "Found complete ingredients list with measurements and detailed step-by-step instructions",
-                "confidence": 0.95
-            }
-        }
-
-
 class RecipeNameExtraction(BaseModel):
     """
     Result from recipe name extraction from user text.

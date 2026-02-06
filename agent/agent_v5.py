@@ -4,8 +4,6 @@ Agent V5 - Unified Recipe Extraction Tool.
 Simplifies the workflow by combining extraction, validation, and formatting
 into a single tool call with automatic follow-up link handling.
 """
-import opik
-
 from typing import Optional, List
 
 from langchain.agents import create_agent
@@ -17,6 +15,7 @@ from tools.unified_extraction import extract_and_process_recipe
 from tools.validation import extract_recipe_name
 from tools.generation import generate_recipe_from_knowledge
 from utils.model import get_model
+from utils.prompts import SYSTEM_PROMPT
 
 
 # =============================================================================
@@ -151,13 +150,7 @@ class AgentState(CopilotKitState):
 
 # Remember to populate the recipe_json field with your final output!"""
 
-opik_client = opik.Opik()
 
-# Get the most recent version of a prompt
-opik_prompt = opik_client.get_prompt(name="AuraChef system")
-if not opik_prompt:
-    raise Exception("System prompt 'AuraChef system' not found in Opik. Please create it in the Opik dashboard before running the agent.") 
-SYSTEM_PROMPT = opik_prompt.prompt
 
 # =============================================================================
 # MODEL AND TOOLS
