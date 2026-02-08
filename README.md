@@ -1,105 +1,91 @@
-# CopilotKit <> LangGraph Starter
+# Aura Chef: AI-Powered Recipe Extraction
 
-This is a starter template for building AI agents using [LangGraph](https://www.langchain.com/langgraph) and [CopilotKit](https://copilotkit.ai). It provides a modern Next.js application with an integrated LangGraph agent to be built on top of.
+Aura Chef is an AI-powered platform that extracts recipes from URLs using advanced natural language processing. Built with [LangGraph](https://www.langchain.com/langgraph) and [CopilotKit](https://copilotkit.ai), it features a modern Next.js frontend and a Python-based agent backend.
 
 ## Prerequisites
 
-- Node.js 18+ 
-- Python 3.8+
-- Any of the following package managers:
-  - [pnpm](https://pnpm.io/installation) (recommended)
-  - npm
-  - [yarn](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable)
-  - [bun](https://bun.sh/)
-- OpenAI API Key (for the LangGraph agent)
-
-> **Note:** This repository ignores lock files (package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb) to avoid conflicts between different package managers. Each developer should generate their own lock file using their preferred package manager. After that, make sure to delete it from the .gitignore.
+- Node.js 18+
+- Python 3.12+
+- [pnpm](https://pnpm.io/installation) (recommended)
+- Supabase account for authentication and database
+- Google Cloud CLI for deployment
+- API Keys:
+  - OpenAI API Key
+  - Supabase Service Key
+  - Open Router API Key
 
 ## Getting Started
 
-1. Install dependencies using your preferred package manager:
-```bash
-# Using pnpm (recommended)
-pnpm install
+1. **Install dependencies:**
+   ```bash
+   pnpm install
+   ```
 
-# Using npm
-npm install
+2. **Set up environment variables:**
+   Create a `.env` file in the `agent/` directory with the following:
+   ```env
+   OPEN_ROUTER_API_KEY=your-open-router-api-key
+   SUPABASE_URL=your-supabase-url
+   SUPABASE_SERVICE_KEY=your-supabase-service-key
+   DATABASE_URL=your-database-url
+   INSTAGRAM_USERNAME=your-instagram-username
+   INSTAGRAM_PASSWORD=your-instagram-password
+   ```
 
-# Using yarn
-yarn install
-
-# Using bun
-bun install
-```
-
-> **Note:** Installing the package dependencies will also install the agent's python dependencies via the `install:agent` script.
-
-
-2. Set up your OpenAI API key:
-```bash
-echo 'OPENAI_API_KEY=your-openai-api-key-here' > agent/.env
-```
-
-3. Start the development server:
-```bash
-# Using pnpm
-pnpm dev
-
-# Using npm
-npm run dev
-
-# Using yarn
-yarn dev
-
-# Using bun
-bun run dev
-```
-
-This will start both the UI and agent servers concurrently.
+3. **Start the development server:**
+   ```bash
+   pnpm dev
+   ```
+   This will start both the Next.js UI (port 3000) and the Python agent (port 8123).
 
 ## Available Scripts
-The following scripts can also be run using your preferred package manager:
+
 - `dev` - Starts both UI and agent servers in development mode
-- `dev:debug` - Starts development servers with debug logging enabled
 - `dev:ui` - Starts only the Next.js UI server
-- `dev:agent` - Starts only the LangGraph agent server
+- `dev:agent` - Starts only the Python agent server
+- `dev:debug` - Starts development servers with debug logging enabled
 - `build` - Builds the Next.js application for production
 - `start` - Starts the production server
 - `lint` - Runs ESLint for code linting
+- `lint --fix` - Auto-fixes linting issues
 - `install:agent` - Installs Python dependencies for the agent
 
 ## Documentation
 
-The main UI component is in `src/app/page.tsx`. You can:
-- Modify the theme colors and styling
-- Add new frontend actions
-- Customize the CopilotKit sidebar appearance
-
-## 📚 Documentation
-
-- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/) - Learn more about LangGraph and its features
-- [CopilotKit Documentation](https://docs.copilotkit.ai) - Explore CopilotKit's capabilities
-- [Next.js Documentation](https://nextjs.org/docs) - Learn about Next.js features and API
-- [YFinance Documentation](https://pypi.org/project/yfinance/) - Financial data tools
-
-## Contributing
-
-Feel free to submit issues and enhancement requests! This starter is designed to be easily extensible.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+- [AGENTS.md](AGENTS.md) - Guide to developing the Python agent
+- [SUPABASE_SETUP_GUIDE.md](SUPABASE_SETUP_GUIDE.md) - Instructions for setting up Supabase
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment instructions for Google Cloud Run
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [CopilotKit Documentation](https://docs.copilotkit.ai)
+- [Next.js Documentation](https://nextjs.org/docs)
 
 ## Troubleshooting
 
 ### Agent Connection Issues
-If you see "I'm having trouble connecting to my tools", make sure:
-1. The LangGraph agent is running on port 8000
-2. Your OpenAI API key is set correctly
-3. Both servers started successfully
+If you encounter issues connecting to the agent:
+1. Ensure the Python agent is running on port 8123.
+2. Verify that all environment variables are set correctly.
+3. Check the logs for errors using:
+   ```bash
+   pnpm dev:debug
+   ```
 
 ### Python Dependencies
 If you encounter Python import errors:
 ```bash
-npm install:agent
+pnpm install:agent
 ```
+
+### Deployment Errors
+If deployment to Google Cloud Run fails:
+1. Verify that the `gcloud` CLI is authenticated.
+2. Ensure all required environment variables are set in the deployment command.
+3. Check the `DEPLOYMENT.md` file for detailed steps.
+
+## Contributing
+
+Feel free to submit issues and enhancement requests! This project is designed to be easily extensible.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
