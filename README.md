@@ -1,91 +1,233 @@
-# Aura Chef: AI-Powered Recipe Extraction
+# 🍳 Aura Chef
 
-Aura Chef is an AI-powered platform that extracts recipes from URLs using advanced natural language processing. Built with [LangGraph](https://www.langchain.com/langgraph) and [CopilotKit](https://copilotkit.ai), it features a modern Next.js frontend and a Python-based agent backend.
+**Your AI Cooking Companion - Extract recipes from anywhere. Cook with confidence.**
 
-## Prerequisites
+[![Built with Opik](https://img.shields.io/badge/Built%20with-Opik-blue)](https://www.comet.com/site/products/opik/) [![LangGraph](https://img.shields.io/badge/Powered%20by-LangGraph-green)](https://langchain-ai.github.io/langgraph/) [![CopilotKit](https://img.shields.io/badge/UI%20with-CopilotKit-purple)](https://copilotkit.ai)
 
-- Node.js 18+
-- Python 3.12+
-- [pnpm](https://pnpm.io/installation) (recommended)
-- Supabase account for authentication and database
-- Google Cloud CLI for deployment
-- API Keys:
-  - OpenAI API Key
-  - Supabase Service Key
-  - Open Router API Key
+> **Built for the Opik Hackathon** - Demonstrating advanced LLM observability, agent workflows, and conversational AI for recipe extraction and enhancement.
 
-## Getting Started
+**[Live Demo](https://aura-chef.vercel.app/)**
 
-1. **Install dependencies:**
-   ```bash
-   pnpm install
-   ```
+---
 
-2. **Set up environment variables:**
-   Create a `.env` file in the `agent/` directory with the following:
-   ```env
-   OPEN_ROUTER_API_KEY=your-open-router-api-key
-   SUPABASE_URL=your-supabase-url
-   SUPABASE_SERVICE_KEY=your-supabase-service-key
-   DATABASE_URL=your-database-url
-   INSTAGRAM_USERNAME=your-instagram-username
-   INSTAGRAM_PASSWORD=your-instagram-password
-   ```
+## 🎯 The Problem
 
-3. **Start the development server:**
-   ```bash
-   pnpm dev
-   ```
-   This will start both the Next.js UI (port 3000) and the Python agent (port 8123).
+Recipes are everywhere (Instagram, TikTok, blogs), but:
+- Extraction is painful (videos, broken links, copy-paste fails)
+- Formats are inconsistent (missing measurements, vague steps)
+- Organization is chaos (lost bookmarks and screenshots)
 
-## Available Scripts
+**Result:** You find great recipes but can't cook from them.
 
-- `dev` - Starts both UI and agent servers in development mode
-- `dev:ui` - Starts only the Next.js UI server
-- `dev:agent` - Starts only the Python agent server
-- `dev:debug` - Starts development servers with debug logging enabled
-- `build` - Builds the Next.js application for production
-- `start` - Starts the production server
-- `lint` - Runs ESLint for code linting
-- `lint --fix` - Auto-fixes linting issues
-- `install:agent` - Installs Python dependencies for the agent
+---
 
-## Documentation
+## ✨ The Solution
 
-- [AGENTS.md](AGENTS.md) - Guide to developing the Python agent
-- [SUPABASE_SETUP_GUIDE.md](SUPABASE_SETUP_GUIDE.md) - Instructions for setting up Supabase
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment instructions for Google Cloud Run
-- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
-- [CopilotKit Documentation](https://docs.copilotkit.ai)
-- [Next.js Documentation](https://nextjs.org/docs)
+**Aura Chef** transforms any recipe source into structured cooking guides with AI.
 
-## Troubleshooting
+**🌐 Extract from Anywhere:** Works with Instagram, TikTok, YouTube, recipe sites, and blogs. Automatically follows embedded links.
 
-### Agent Connection Issues
-If you encounter issues connecting to the agent:
-1. Ensure the Python agent is running on port 8123.
-2. Verify that all environment variables are set correctly.
-3. Check the logs for errors using:
-   ```bash
-   pnpm dev:debug
-   ```
+**🤖 AI Enhancement:** Completes partial recipes, generates from scratch, and acts as a conversational cooking assistant.
 
-### Python Dependencies
-If you encounter Python import errors:
-```bash
-pnpm install:agent
+**📚 Organized Library:** Save, search, and filter recipes. Persistent chat threads keep conversation context.
+
+---
+
+## 🎬 How It Works
+
+**1. Share:** Paste any URL or ask for a recipe  
+**2. AI Processing:** LangGraph agent extracts and structures content (traced with Opik)  
+**3. Recipe Card:** Generative UI renders formatted recipe, save to library, chat for help
+
+---
+
+## 🧠 Built with Opik: LLM Observability & Optimization
+
+Aura Chef showcases **Opik's powerful LLM evaluation and observability platform** throughout its entire agent workflow.
+
+### Opik Integration Features
+
+#### 📊 **Complete LLM Tracing**
+- **Every agent execution** is logged with detailed traces and spans
+- Track LLM calls, tool invocations, and state transitions in real-time
+- Visualize the complete agent workflow with xray graphs
+- Debug issues by drilling into individual traces
+- Track conversational threads made up of multiple traces
+
+```python
+# Agent automatically wrapped with Opik tracing
+opik_tracer = OpikTracer(
+    tags=["aura-chef", "recipe-extraction", "agent-v5"],
+    project_name="commit-to-change",
+    graph=agent.get_graph(xray=True)
+)
+tracked_agent = track_langgraph(agent, opik_tracer)
 ```
 
-### Deployment Errors
-If deployment to Google Cloud Run fails:
-1. Verify that the `gcloud` CLI is authenticated.
-2. Ensure all required environment variables are set in the deployment command.
-3. Check the `DEPLOYMENT.md` file for detailed steps.
+#### 🎯 **Centralized Prompt Management**
+- All agent prompts stored and versioned in Opik dashboard
+- No hardcoded prompts - update without code changes
+- A/B test different prompt strategies
+- Track prompt performance across versions
 
-## Contributing
+```python
+# Prompts loaded from Opik at runtime
+SYSTEM_PROMPT = get_prompt('AuraChef system')
+VALIDATE_AND_FORMAT_PROMPT = get_prompt('AuraChef validate and format')
+```
 
-Feel free to submit issues and enhancement requests! This project is designed to be easily extensible.
 
-## License
+### What Opik helped during development of the Project ?
+- Eval based development, using online evals was a time saver and gave realtime feedback to agent and prompt optimisations making issues easier to debug.
+- Prompt management helped tracked prompt version which could be used in experiments with prompt optimisations.
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Next.js 16** - React framework with App Router
+- **React 19** - Latest React with server components
+- **TypeScript** - Type-safe development
+- **Tailwind CSS 4** - Modern styling
+- **CopilotKit 1.51** - Generative UI & conversational interface
+
+### Backend
+- **Python 3.12** - Modern Python with type hints
+- **LangGraph** - Advanced agent workflows and state management
+- **FastAPI** - High-performance async API server
+- **OpenRouter** - Access to multiple LLM providers
+
+### Database & Auth
+- **Supabase** - PostgreSQL database with Row Level Security
+- **Supabase Auth** - JWT-based authentication
+- **LangGraph Checkpointer** - Persistent thread state
+
+### Observability & Monitoring
+- **Opik** - LLM tracing, prompt management, and evaluation
+- **OpikTracer** - LangGraph integration for automatic tracing
+- **Rich logging** - Detailed console output for debugging
+
+### Extraction & Processing
+- **BeautifulSoup4** - HTML parsing
+- **Instaloader** - Instagram extraction
+- **yt-dlp** - YouTube video processing
+- **Requests** - HTTP client for web scraping
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+, Python 3.12+, pnpm
+- Supabase account (database & auth)
+- OpenRouter API key (LLM access)
+- Opik account (observability and evals)
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐
+│   Next.js UI    │  ← User Interface
+│   (Port 3000)   │
+└────────┬────────┘
+         │
+         │ CopilotKit WebSocket
+         │
+┌────────▼────────┐
+│  FastAPI Server │  ← Agent Runtime
+│   (Port 8123)   │
+└────────┬────────┘
+         │
+         │ LangGraph Execution
+         │
+┌────────▼────────┐
+│  LangGraph      │  ← Agent Logic
+│  Agent (V5)     │
+└────┬───┬───┬────┘
+     │   │   │
+     │   │   └──────► External APIs
+     │   │              (Instagram, YouTube, etc.)
+     │   │
+     │   └──────────► LLMs via OpenRouter
+     │                 (GPT-4, Claude, etc.)
+     │
+     └──────────────► Opik Platform
+                       (Tracing & Observability)
+
+┌─────────────────┐
+│   Supabase      │  ← Database & Auth
+│   - PostgreSQL  │
+│   - Auth/JWT    │
+│   - Checkpoints │
+└─────────────────┘
+```
+---
+
+## 🌟 What Makes Aura Chef Special?
+
+### Unique Combination
+**No other tool does all four:**
+- ✅ Multi-platform extraction (social + traditional sites)
+- ✅ AI enhancement (partial → complete recipes)
+- ✅ Conversational interface (ask questions, get help)
+- ✅ Organized library (search, filter, persist)
+
+---
+
+## 🎓 Learning Resources
+
+Built with cutting-edge technologies? Learn more:
+
+- **Opik Documentation** - [comet.com/docs/opik](https://www.comet.com/docs/opik/)
+- **LangGraph Tutorials** - [langchain-ai.github.io/langgraph](https://langchain-ai.github.io/langgraph/)
+- **CopilotKit Guides** - [docs.copilotkit.ai](https://docs.copilotkit.ai)
+- **Next.js 16** - [nextjs.org/docs](https://nextjs.org/docs)
+
+---
+
+## 🔮 Future Roadmap
+
+### Planned Features
+- 📅 **Meal planning** - Multi-recipe planning and shopping lists
+- 🥗 **Nutrition info** - Automatic nutritional analysis
+- 🍽️ **Dietary restrictions** - Filter by vegan, gluten-free, etc.
+- 📱 **Mobile app** - Native iOS/Android for kitchen use
+- 👥 **Community sharing** - Share recipes with friends
+- 🎨 **Recipe images** - AI-generated images for recipes without photos
+
+### Opik Enhancements
+- 🎯 **Automated optimization** - Use Opik's agent optimization features
+- 🔔 **Alerting** - Notifications for extraction failures or quality degradation
+
+---
+
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+Special thanks to:
+- **Comet ML** for building Opik
+- **CopilotKit** for the amazing generative UI framework
+- **LangChain** for LangGraph and agent tools
+- **Supabase** for the excellent backend platform
+
+---
+
+## 📬 Questions or Feedback?
+
+- **Issues:** [GitHub Issues](your-repo-url/issues)
+- **Demo:** [Live Demo Link](#)
+- **Opik:** [Get Started with Opik](https://www.comet.com/signup?from=llm)
+
+---
+
+**Made with ❤️ and AI for the Commit to Change Hackathon**
+
+*From scattered social media posts to organized recipe collections - let's cook together!* 🍳✨
