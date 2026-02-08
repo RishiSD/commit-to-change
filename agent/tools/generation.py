@@ -184,26 +184,43 @@ This extracted content contains:
 
 Follow these requirements:
 
-**Recipe Structure:**
-- title: The name of the recipe
-- ingredients: List of ingredients with name, quantity, and unit
-  * Parse quantities carefully (e.g., 2 cups → quantity: 2, unit: "cups")
-  * For ranges use strings (e.g., "2-3" for quantity)
-  * For "to taste" → quantity: "to taste", unit: ""
-- steps: Ordered list of clear, detailed cooking instructions
-- tags: Descriptive tags (cuisine type, dietary info, difficulty, meal type)
-- servings: Number of servings (integer)
-- prep_time: Preparation time (e.g., "15 minutes")
-- cook_time: Cooking time (e.g., "30 minutes")
-- total_time: Total time (e.g., "45 minutes")
-- difficulty: One of "easy", "medium", or "hard"
-- cuisine: Cuisine type (e.g., "Italian", "Indian", "Mexican")
-- additional_info: List of helpful tips including:
-  * Cooking tips and techniques for best results
-  * Common mistakes to avoid
-  * Storage instructions
-  * Possible substitutions or variations
-  * Serving suggestions
+**Output JSON Structure:**
+Generate the recipe matching this exact JSON structure:
+
+{
+  "title": "Recipe Name Here",
+  "ingredients": [
+    {"name": "Ingredient 1", "quantity": 2, "unit": "cups"},
+    {"name": "Ingredient 2", "quantity": "1/2", "unit": "tsp"},
+    {"name": "Ingredient 3", "quantity": "to taste", "unit": ""}
+  ],
+  "steps": [
+    "First detailed instruction step",
+    "Second detailed instruction step",
+    "Third detailed instruction step"
+  ],
+  "tags": ["cuisine-type", "meal-type", "dietary-info", "difficulty"],
+  "servings": 4,
+  "prep_time": "15 minutes",
+  "cook_time": "30 minutes",
+  "total_time": "45 minutes",
+  "difficulty": "easy",
+  "cuisine": "Cuisine Name",
+  "additional_info": [
+    "Helpful cooking tip or technique",
+    "Common mistake to avoid",
+    "Storage instructions",
+    "Possible substitution or variation",
+    "Serving suggestion"
+  ]
+}
+
+**Important JSON Formatting:**
+- Output must be flat JSON without newline characters (\n)
+- For quantities: use numbers for whole amounts, strings for fractions ("1/2"), ranges ("2-3"), or "to taste"
+- For "to taste" ingredients: quantity: "to taste", unit: ""
+- Steps must be complete sentences with clear instructions
+- Difficulty must be exactly one of: "easy", "medium", or "hard"
 
 **Quality Standards:**
 - Use accurate measurements and realistic cooking times
@@ -217,7 +234,7 @@ Follow these requirements:
 - Use traditional ingredients when appropriate
 - Provide culturally authentic preparations
 
-Generate the recipe as structured JSON data."""
+Generate the recipe as structured JSON data matching the format above."""
         
         # Generate structured recipe data
         recipe_data_result = structured_model.invoke([SystemMessage(content=generation_prompt)])
