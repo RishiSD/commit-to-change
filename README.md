@@ -79,7 +79,11 @@ VALIDATE_AND_FORMAT_PROMPT = get_prompt('AuraChef validate and format')
 
 ### What Opik helped during development of the Project ?
 - Eval based development, using online evals was a time saver and gave realtime feedback to agent and prompt optimisations making issues easier to debug.
+  <img width="1386" height="531" alt="Screenshot 2026-02-09 at 00 11 01" src="https://github.com/user-attachments/assets/031235f9-82b6-4ad9-8875-3bae82cfd97f" />
+  <img width="1381" height="502" alt="Screenshot 2026-02-09 at 00 12 46" src="https://github.com/user-attachments/assets/343841e9-80ed-4427-a7ea-f638cba8b3fb" />
 - Prompt management helped tracked prompt version which could be used in experiments with prompt optimisations.
+  <img width="1355" height="317" alt="Screenshot 2026-02-09 at 00 13 14" src="https://github.com/user-attachments/assets/249c9bb7-a713-4480-8e5c-d7016f9e9f40" />
+
 
 ---
 
