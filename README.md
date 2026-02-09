@@ -8,6 +8,8 @@
 
 **[Live Demo](https://aura-chef.vercel.app/)**
 
+**[Recorded Demo](https://www.youtube.com/watch?v=jUb8gWpr6yo)**
+
 ---
 
 ## 🎯 The Problem
