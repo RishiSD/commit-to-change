@@ -143,11 +143,44 @@ VALIDATE_AND_FORMAT_PROMPT = get_prompt('AuraChef validate and format')
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Node.js 18+, Python 3.12+, pnpm
-- Supabase account (database & auth)
-- OpenRouter API key (LLM access)
-- Opik account (observability and evals)
+### 📁 Project Structure
+
+```
+aura-chef/
+├── src/
+│   ├── app/                 # Next.js pages & API routes
+│   ├── components/          # React components
+│   ├── hooks/               # Custom hooks (auth, threads)
+│   └── lib/                 # Types, Supabase clients
+├── agent/                   # Python LangGraph agent
+│   ├── server.py           # FastAPI server entry
+│   ├── agent_v5.py         # Main agent graph
+│   ├── tools/              # LangGraph tools
+│   ├── utils/              # Python utilities
+│   └── eval_scripts/       # Opik evaluation scripts
+└── public/                  # Static assets
+```
+
+### 🛠️ Development Commands
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start both UI and agent (recommended)
+pnpm dev
+
+# Or run separately:
+pnpm dev:ui               # Next.js only (port 3000)
+pnpm dev:agent            # Agent only (port 8123)
+
+# Production build
+pnpm build
+pnpm start
+
+# Code quality
+pnpm lint
+```
 
 ---
 
