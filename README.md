@@ -19,17 +19,23 @@ Recipes are everywhere (Instagram, TikTok, blogs), but:
 
 **Result:** You find great recipes but can't cook from them.
 
+**Why this matters in real life:** People trying to cook healthier, stick to budgets, or build sustainable routines often lose momentum when recipes are scattered, incomplete, or hard to follow.
+
 ---
 
 ## ✨ The Solution
 
 **Aura Chef** transforms any recipe source into structured cooking guides with AI.
 
-**🌐 Extract from Anywhere:** Works with Instagram, TikTok, YouTube, recipe sites, and blogs. Automatically follows embedded links.
+**🌐 Extract from Anywhere (Functionality):** Works with Instagram, TikTok, YouTube, recipe sites, and blogs. Automatically follows embedded links.
 
-**🤖 AI Enhancement:** Completes partial recipes, generates from scratch, and acts as a conversational cooking assistant.
+**🤖 AI Enhancement (Use of LLMs/Agents):** LangGraph agent chains extraction, validation, and formatting tools to turn messy inputs into structured recipes, plus conversational help.
 
-**📚 Organized Library:** Save, search, and filter recipes. Persistent chat threads keep conversation context.
+**📚 Organized Library (Real-world relevance):** Save, search, and filter recipes so users can actually cook, repeat, and refine what works.
+
+**📊 Evaluation & Observability:** End-to-end Opik tracing, prompt versioning, and tool-level spans make agent behavior measurable and debuggable.
+
+**🎯 Goal Alignment:** Supports wellness goals by reducing friction to cook at home, encouraging consistent meal habits and mindful planning.
 
 ---
 
