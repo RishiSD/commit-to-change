@@ -88,10 +88,23 @@ VALIDATE_AND_FORMAT_PROMPT = get_prompt('AuraChef validate and format')
 ### What Opik helped during development of the Project ?
 - Eval based development, using online evals was a time saver and gave realtime feedback to agent and prompt optimisations making issues easier to debug.
   <img width="1386" height="531" alt="Screenshot 2026-02-09 at 00 11 01" src="https://github.com/user-attachments/assets/031235f9-82b6-4ad9-8875-3bae82cfd97f" />
+
+- Thred based eval for complete conversational relevance.
   <img width="1381" height="502" alt="Screenshot 2026-02-09 at 00 12 46" src="https://github.com/user-attachments/assets/343841e9-80ed-4427-a7ea-f638cba8b3fb" />
+
 - Prompt management helped tracked prompt version which could be used in experiments with prompt optimisations.
   <img width="1355" height="317" alt="Screenshot 2026-02-09 at 00 13 14" src="https://github.com/user-attachments/assets/249c9bb7-a713-4480-8e5c-d7016f9e9f40" />
 
+- Experiments
+
+  - Offline evals for tool adherence and tool schema validations
+  <img width="1385" height="618" alt="Screenshot 2026-02-09 at 10 15 08" src="https://github.com/user-attachments/assets/080819eb-6592-4fa8-8bda-cbec642e347d" />
+
+  - Agent trajectory evals for validating the order of tool selection and executions
+  <img width="1382" height="601" alt="Screenshot 2026-02-09 at 10 33 59" src="https://github.com/user-attachments/assets/67e3e767-af48-4cf1-b57b-f8b996aed3c9" />
+
+- Reducing the token usage by optimizing the system prompt using Opiks 'Improve prompt' feature.
+- LLM Gateway to centralize inference API access.
 
 ---
 
