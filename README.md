@@ -4,7 +4,7 @@
 
 [![Built with Opik](https://img.shields.io/badge/Built%20with-Opik-blue)](https://www.comet.com/site/products/opik/) [![LangGraph](https://img.shields.io/badge/Powered%20by-LangGraph-green)](https://langchain-ai.github.io/langgraph/) [![CopilotKit](https://img.shields.io/badge/UI%20with-CopilotKit-purple)](https://copilotkit.ai)
 
-> **Built for the Opik Hackathon** - Demonstrating advanced LLM observability, agent workflows, and conversational AI for recipe extraction and enhancement.
+> **Built for the Commit to Change Hackathon** - Demonstrating advanced LLM observability, agent workflows, and conversational AI for recipe extraction and enhancement.
 
 **[Live Demo](https://aura-chef.vercel.app/)**
 
