@@ -31,7 +31,7 @@ Recipes are everywhere (Instagram, TikTok, blogs), but:
 
 **🌐 Extract from Anywhere (Functionality):** Works with Instagram, TikTok, YouTube, recipe sites, and blogs. Automatically follows embedded links.
 
-**🤖 AI Enhancement (Use of LLMs/Agents):** LangGraph agent chains extraction, validation, and formatting tools to turn messy inputs into structured recipes, plus conversational help.
+**🤖 AI Enhancement (Use of LLMs/Agents):** LangGraph agent chains extraction, validation, and formatting tools to turn messy inputs into structured recipes, plus conversational help like asking Aura to make the recipe healthier or even replace some ingredients.
 
 **📚 Organized Library (Real-world relevance):** Save, search, and filter recipes so users can actually cook, repeat, and refine what works.
 
